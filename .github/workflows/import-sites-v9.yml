@@ -24,7 +24,7 @@ jobs:
 
       - name: Clone exact Sites source commit
         env:
-          SOURCE_REPO: https://git.chatgpt-team.site/239e-fill_acl9dd6facb734818995871e9f10728c/6a9f69cc85d08191bcd12a5ba433f7d0.git
+          SOURCE_REPO: https://git.chatgpt-team.site/239e89d4-d8fb-427a-8b00-7b00e6e41d0a/appgprj_6a9f69cc85d08191bcd12a5ba433f7d0.git
           SOURCE_COMMIT: cb6d0421c5f922e8db0a0ae64bf1028a185cd405
         run: |
           set -euo pipefail
