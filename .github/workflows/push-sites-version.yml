@@ -1,0 +1,115 @@
+name: Save tested source to Sites
+
+on:
+  push:
+    paths:
+      - ".github/workflows/push-sites-version.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: save-manychatbot-to-sites
+  cancel-in-progress: true
+
+jobs:
+  save-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: false
+
+      - name: Verify source before transfer
+        run: |
+          set -euo pipefail
+          npm ci
+          npm test
+          if find . -type f \( -name ".env" -o -name ".env.local" -o -name "*.pem" -o -name "*.p12" -o -name "*.pfx" -o -name "id_rsa" -o -name "id_ed25519" \) -print -quit | grep -q .; then
+            echo "Transfer stopped: private configuration file detected."
+            exit 1
+          fi
+          if grep -RqE --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=dist --exclude='*.lock' --exclude='package-lock.json' '(sk-[A-Za-z0-9_-]{20,}|AIza[A-Za-z0-9_-]{20,}|llgw_(live|test)_[A-Za-z0-9_-]{20,}|whsec_[A-Za-z0-9_-]{20,}|-----BEGIN ([A-Z ]+)?PRIVATE KEY-----)' .; then
+            echo "Transfer stopped: a value resembling a secret was detected."
+            exit 1
+          fi
+
+      - name: Create one-time encryption key
+        run: |
+          set -euo pipefail
+          PRIVATE_KEY="$RUNNER_TEMP/sites-push-private.pem"
+          PUBLIC_KEY=".github/sites-push-key.pub"
+          mkdir -p .github
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:4096 -out "$PRIVATE_KEY" 2>/dev/null
+          openssl rsa -in "$PRIVATE_KEY" -RSAPublicKey_out -out "$PUBLIC_KEY" 2>/dev/null
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$PUBLIC_KEY"
+          git commit -m "Create one-time Sites push key"
+          git push origin HEAD:main
+
+      - name: Wait for encrypted Sites credential
+        run: |
+          set -euo pipefail
+          FOUND=0
+          for attempt in $(seq 1 120); do
+            git fetch --quiet origin main
+            if git cat-file -e origin/main:.github/sites-push-token.enc 2>/dev/null; then
+              git show origin/main:.github/sites-push-token.enc > "$RUNNER_TEMP/sites-push-token.enc"
+              git reset --hard origin/main
+              FOUND=1
+              break
+            fi
+            sleep 5
+          done
+          if [ "$FOUND" -ne 1 ]; then
+            echo "Transfer stopped: encrypted credential was not received in time."
+            exit 1
+          fi
+
+      - name: Push exact source to Sites
+        env:
+          SITES_REPO: https://git.chatgpt-team.site/239e89d4-d8fb-427a-8b00-7b00e6e41d0a/appgprj_6a9f69cc85d08191bcd12a5ba433f7d0.git
+        run: |
+          set -euo pipefail
+          PRIVATE_KEY="$RUNNER_TEMP/sites-push-private.pem"
+          CIPHER_FILE="$RUNNER_TEMP/sites-push-token.bin"
+          TOKEN_FILE="$RUNNER_TEMP/sites-push-token.txt"
+          base64 -d "$RUNNER_TEMP/sites-push-token.enc" > "$CIPHER_FILE"
+          openssl pkeyutl -decrypt -inkey "$PRIVATE_KEY" -pkeyopt rsa_padding_mode:pkcs1 -in "$CIPHER_FILE" -out "$TOKEN_FILE"
+          SITES_TOKEN="$(tr -d '\r\n' < "$TOKEN_FILE")"
+          test -n "$SITES_TOKEN"
+          echo "::add-mask::$SITES_TOKEN"
+          AUTH_HEADER="Authorization: Bearer $SITES_TOKEN"
+          export GIT_TERMINAL_PROMPT=0
+
+          SITE_SRC="$RUNNER_TEMP/manychatbot-sites-source"
+          rm -rf "$SITE_SRC"
+          git -c "http.extraHeader=$AUTH_HEADER" clone --no-tags "$SITES_REPO" "$SITE_SRC"
+
+          rsync -a --delete --exclude=".git/" --exclude=".github/" --exclude="node_modules/" --exclude="dist/" --exclude="SITES_SOURCE_VERSION.md" "$GITHUB_WORKSPACE/" "$SITE_SRC/"
+
+          git -C "$SITE_SRC" config user.name "Codex"
+          git -C "$SITE_SRC" config user.email "codex@openai.com"
+          git -C "$SITE_SRC" add -A
+          if git -C "$SITE_SRC" diff --cached --quiet; then
+            NEW_SHA="$(git -C "$SITE_SRC" rev-parse HEAD)"
+          else
+            git -C "$SITE_SRC" commit -m "Fix LINE OA setup and add complete AI settings"
+            git -c "http.extraHeader=$AUTH_HEADER" -C "$SITE_SRC" push origin HEAD:main
+            NEW_SHA="$(git -C "$SITE_SRC" rev-parse HEAD)"
+          fi
+
+          rm -f "$TOKEN_FILE" "$CIPHER_FILE" "$RUNNER_TEMP/sites-push-token.enc" "$PRIVATE_KEY"
+          rm -f .github/sites-push-key.pub .github/sites-push-token.enc
+          printf '{"commit_sha":"%s","verified":true}\n' "$NEW_SHA" > .github/sites-push-result.json
+          git add -A .github/sites-push-key.pub .github/sites-push-token.enc .github/sites-push-result.json
+          git commit -m "Record tested Sites source commit $NEW_SHA"
+          git push origin HEAD:main

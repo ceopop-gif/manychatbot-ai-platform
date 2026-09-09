@@ -49,7 +49,7 @@ const navItems: Array<{ id: View; label: string; icon: typeof LayoutDashboard }>
   { id: "overview", label: "ภาพรวมระบบ", icon: LayoutDashboard },
   { id: "admins", label: "Admin AI", icon: UserRoundCog },
   { id: "skills", label: "Skill ของ Admin", icon: Sparkles },
-  { id: "providers", label: "AI Provider", icon: BrainCircuit },
+  { id: "providers", label: "ตั้งค่า AI", icon: BrainCircuit },
   { id: "channels", label: "เชื่อม LINE OA", icon: Network },
   { id: "reports", label: "รายงานการแชต", icon: BarChart3 },
   { id: "systems", label: "ระบบลูกค้า", icon: Building2 },
@@ -224,7 +224,7 @@ export default function DashboardClient() {
         : view === "admins" ? <AdminsView workspaceId={activeWorkspaceId} admins={admins} onReload={reloadWorkspace} onOpenSkills={() => setView("skills")} />
           : view === "skills" ? <SkillsView workspaceId={activeWorkspaceId} admins={admins} skills={skills} onReload={reloadWorkspace} />
             : view === "providers" ? <ProvidersView workspaceId={activeWorkspaceId} providers={providers} onReload={reloadWorkspace} />
-              : view === "channels" ? <ChannelsView bots={workspaceBots} accounts={workspaceAccounts} admins={admins} providers={providers} onReload={reloadEverything} onOpenSystems={() => setView("systems")} />
+              : view === "channels" ? <ChannelsView workspaceId={activeWorkspaceId} bots={workspaceBots} accounts={workspaceAccounts} admins={admins} providers={providers} onReload={reloadEverything} onOpenProviders={() => setView("providers")} />
                 : view === "reports" ? <ReportsView report={report} />
                   : <SystemsView workspaces={workspaces} activeWorkspaceId={activeWorkspaceId} bots={bots} onSelectWorkspace={setActiveWorkspaceId} onCreateWorkspace={createWorkspace} onCreateBot={createBot} />;
 
