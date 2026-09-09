@@ -1,0 +1,2 @@
+ALTER TABLE `channel_accounts` ADD `workspace_id` text REFERENCES workspaces(id);--> statement-breakpoint
+CREATE UNIQUE INDEX `idx_channel_accounts_workspace_line` ON `channel_accounts` (`workspace_id`) WHERE "channel_accounts"."platform" = 'line' AND "channel_accounts"."workspace_id" IS NOT NULL;
