@@ -175,17 +175,22 @@ export function ProvidersView({
         </div>
       )}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="rounded-2xl sm:max-w-2xl">
-          <DialogHeader><DialogTitle>{editingId ? "แก้ไขการตั้งค่า AI" : "เพิ่ม AI Provider"}</DialogTitle><DialogDescription>กำหนด Provider, Model และ Token จากนั้นระบบจะบันทึกแบบเข้ารหัสและทดสอบให้ทันที</DialogDescription></DialogHeader>
-          <div className="grid gap-4">
+        <DialogContent className="max-h-[calc(100dvh-1rem)] w-[calc(100%-1rem)] grid-rows-[auto_minmax(0,1fr)_auto] gap-0 overflow-hidden rounded-2xl p-0 sm:max-h-[calc(100dvh-3rem)] sm:max-w-2xl">
+          <DialogHeader className="shrink-0 border-b border-slate-200 p-4 pr-16 text-left sm:p-6 sm:pr-16"><DialogTitle>{editingId ? "แก้ไขการตั้งค่า AI" : "เพิ่ม AI Provider"}</DialogTitle><DialogDescription>กำหนด Provider, Model และ Token จากนั้นระบบจะบันทึกแบบเข้ารหัสและทดสอบให้ทันที</DialogDescription></DialogHeader>
+          <div className="min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6">
+            <div className="grid gap-4">
             <label><span className="mb-1.5 block text-sm font-bold text-slate-700">ประเภท AI</span><Select value={provider} disabled={Boolean(editingId)} onValueChange={(value) => changeProvider(value as ProviderRecord["provider"])}><SelectTrigger className="h-11 w-full rounded-xl"><SelectValue /></SelectTrigger><SelectContent>{Object.entries(providerLabels).map(([id, meta]) => <SelectItem key={id} value={id}>{meta.label}</SelectItem>)}</SelectContent></Select></label>
             <div className="grid gap-4 sm:grid-cols-2"><label><span className="mb-1.5 block text-sm font-bold text-slate-700">ชื่อการเชื่อมต่อ *</span><Input value={name} onChange={(event) => setName(event.target.value)} className="h-11 rounded-xl" /></label><label><span className="mb-1.5 block text-sm font-bold text-slate-700">Model ID *</span><Input value={model} onChange={(event) => setModel(event.target.value)} className="h-11 rounded-xl font-mono text-sm" /></label></div>
             <label><span className="mb-1.5 block text-sm font-bold text-slate-700">Base URL {provider === "custom" ? "*" : "(แก้ได้เมื่อใช้ Gateway)"}</span><Input value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} placeholder="https://..." className="h-11 rounded-xl font-mono text-sm" /></label>
             <label><span className="mb-1.5 block text-sm font-bold text-slate-700">API Token {editingId ? "(เว้นว่างเพื่อใช้ Token เดิม)" : "*"}</span><Input type="password" autoComplete="new-password" value={apiKey} onChange={(event) => setApiKey(event.target.value)} placeholder={editingId ? "เว้นว่างเพื่อใช้ Token เดิม" : "วาง Token ของ Provider"} className="h-11 rounded-xl font-mono text-sm" /></label>
             <div className="grid gap-4 sm:grid-cols-2"><label><span className="mb-1.5 block text-sm font-bold text-slate-700">ความสร้างสรรค์ 0–100</span><Input type="number" min={0} max={100} value={temperature} onChange={(event) => setTemperature(Number(event.target.value))} className="h-11 rounded-xl" /></label><label><span className="mb-1.5 block text-sm font-bold text-slate-700">ความยาวคำตอบ 100–4,000 Token</span><Input type="number" min={100} max={4000} value={maxOutputTokens} onChange={(event) => setMaxOutputTokens(Number(event.target.value))} className="h-11 rounded-xl" /></label></div>
             {!editingId && <div className="flex items-center justify-between rounded-2xl border border-slate-200 p-4"><div><p className="text-sm font-bold text-slate-800">ใช้เป็น AI หลัก</p><p className="text-xs text-slate-500">เลือกอัตโนมัติเมื่อ LINE OA ไม่ได้ระบุ Provider</p></div><Switch checked={isDefault} onCheckedChange={setIsDefault} /></div>}
+            </div>
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setOpen(false)}>ยกเลิก</Button><Button disabled={saving} onClick={saveProvider} className="bg-cyan-700 hover:bg-cyan-800">{saving ? <LoaderCircle className="animate-spin" /> : <KeyRound />} บันทึกและทดสอบ AI</Button></DialogFooter>
+          <DialogFooter className="shrink-0 border-t border-slate-200 bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-4">
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} className="min-h-11 w-full touch-manipulation sm:w-auto">ปิด</Button>
+            <Button type="button" disabled={saving} onClick={saveProvider} className="min-h-11 w-full touch-manipulation bg-cyan-700 hover:bg-cyan-800 sm:w-auto">{saving ? <LoaderCircle className="animate-spin" /> : <KeyRound />} บันทึกและทดสอบ AI</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

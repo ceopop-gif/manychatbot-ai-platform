@@ -70,10 +70,12 @@ function DialogContent({
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"
-            className="absolute top-4 right-4 rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
+            type="button"
+            aria-label="ปิดหน้าต่าง"
+            className="absolute right-2 top-2 z-20 flex size-11 touch-manipulation items-center justify-center rounded-full border border-border bg-background/95 text-foreground opacity-100 shadow-sm ring-offset-background transition hover:bg-accent focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none sm:right-3 sm:top-3 sm:size-10 [&_svg]:pointer-events-none [&_svg]:shrink-0"
           >
-            <XIcon />
-            <span className="sr-only">Close</span>
+            <XIcon className="size-5" />
+            <span className="sr-only">ปิดหน้าต่าง</span>
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Content>

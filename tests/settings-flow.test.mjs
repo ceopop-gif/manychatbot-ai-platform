@@ -4,6 +4,7 @@ import test from "node:test";
 
 const connections = await readFile(new URL("../components/adminoa/connections.tsx", import.meta.url), "utf8");
 const dashboard = await readFile(new URL("../app/dashboard-client.tsx", import.meta.url), "utf8");
+const dialog = await readFile(new URL("../components/ui/dialog.tsx", import.meta.url), "utf8");
 
 test("LINE OA setup no longer requires a manually created chatbot", () => {
   assert.match(connections, /ระบบจะสร้างตัวรับข้อความสำหรับ LINE OA ให้อัตโนมัติ/);
@@ -25,4 +26,13 @@ test("LINE settings provide a direct route to AI configuration", () => {
   assert.match(connections, /onOpenProviders/);
   assert.match(connections, /ยังไม่ได้ตั้งค่า AI/);
   assert.match(connections, /เชื่อม LINE OA ได้ก่อน แต่ต้องตั้งค่า AI/);
+});
+
+
+test("AI settings dialog remains usable on mobile screens", () => {
+  assert.match(connections, /max-h-\[calc\(100dvh-1rem\)\]/);
+  assert.match(connections, /overflow-y-auto overscroll-contain/);
+  assert.match(connections, />ปิด<\/Button>/);
+  assert.match(dialog, /size-11 touch-manipulation/);
+  assert.match(dialog, /aria-label="ปิดหน้าต่าง"/);
 });
