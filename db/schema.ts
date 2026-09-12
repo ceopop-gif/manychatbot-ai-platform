@@ -10,6 +10,7 @@ export const workspaces = sqliteTable(
     systemCode: text("system_code").notNull(),
     customerName: text("customer_name").notNull().default(""),
     customerEmail: text("customer_email").notNull().default(""),
+    customerPhone: text("customer_phone").notNull().default(""),
     plan: text("plan").notNull().default("trial"),
     status: text("status").notNull().default("active"),
     createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
@@ -175,7 +176,55 @@ export const channelAccounts = sqliteTable(
     index("idx_channel_accounts_owner_user_id").on(table.ownerUserId),
     index("idx_channel_accounts_platform").on(table.platform),
     index("idx_channel_accounts_webhook_key").on(table.webhookKey),
-    uniqueIndex("idx_channel_accounts_workspace_line").on(table.workspaceId).where(sql`${table.platform} = 'line' AND ${table.workspaceId} IS NOT NULL`),
+    index("idx_channel_accounts_workspace_platform").on(table.workspaceId, table.platform),
+  ]
+);
+
+export const paymentProfiles = sqliteTable(
+  "payment_profiles",
+  {
+    id: text("id").primaryKey(),
+    ownerUserId: text("owner_user_id").notNull(),
+    workspaceId: text("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull().default("chatpos"),
+    merchantId: text("merchant_id").notNull().default(""),
+    checkoutBaseUrl: text("checkout_base_url").notNull().default("https://chatpospay.com"),
+    webhookSecretEncrypted: text("webhook_secret_encrypted").notNull().default(""),
+    mode: text("mode").notNull().default("test"),
+    status: text("status").notNull().default("pending"),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("idx_payment_profiles_workspace").on(table.workspaceId),
+    index("idx_payment_profiles_owner").on(table.ownerUserId),
+  ]
+);
+
+export const paymentOrders = sqliteTable(
+  "payment_orders",
+  {
+    id: text("id").primaryKey(),
+    ownerUserId: text("owner_user_id").notNull(),
+    workspaceId: text("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+    reference: text("reference").notNull(),
+    customerName: text("customer_name").notNull().default(""),
+    customerPhone: text("customer_phone").notNull().default(""),
+    description: text("description").notNull().default(""),
+    amountSatang: integer("amount_satang").notNull(),
+    currency: text("currency").notNull().default("THB"),
+    status: text("status").notNull().default("pending"),
+    checkoutUrl: text("checkout_url").notNull().default(""),
+    transactionId: text("transaction_id").notNull().default(""),
+    expiresAt: text("expires_at"),
+    paidAt: text("paid_at"),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("idx_payment_orders_reference").on(table.reference),
+    index("idx_payment_orders_owner_workspace_created").on(table.ownerUserId, table.workspaceId, table.createdAt),
+    index("idx_payment_orders_workspace_status").on(table.workspaceId, table.status),
   ]
 );
 
@@ -241,6 +290,8 @@ export const messages = sqliteTable(
   (table) => [
     index("idx_messages_conversation_created").on(table.conversationId, table.createdAt),
     index("idx_messages_owner_created").on(table.ownerUserId, table.createdAt),
-    index("idx_messages_external_id").on(table.externalMessageId),
+    uniqueIndex("idx_messages_owner_external_event")
+      .on(table.ownerUserId, table.externalMessageId)
+      .where(sql`${table.externalMessageId} <> ''`),
   ]
 );

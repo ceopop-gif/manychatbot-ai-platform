@@ -1,0 +1,2 @@
+DROP INDEX `idx_messages_external_id`;--> statement-breakpoint
+CREATE UNIQUE INDEX `idx_messages_owner_external_event` ON `messages` (`owner_user_id`,`external_message_id`) WHERE "messages"."external_message_id" <> '';

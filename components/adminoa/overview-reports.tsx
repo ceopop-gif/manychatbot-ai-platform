@@ -46,23 +46,27 @@ export function OverviewView({
   report: ReportRecord | null;
   onNavigate: (view: string) => void;
 }) {
+  const activeAdmins = admins.filter((item) => item.status === "active");
+  const activeAdminIds = new Set(activeAdmins.map((item) => item.id));
+  const routingSkills = skills.filter((item) => item.status === "active" && activeAdminIds.has(item.adminId));
   const activeProviders = providers.filter((item) => item.status === "active").length;
   const activeLine = accounts.filter((item) => item.platform === "line" && item.status === "active").length;
-  const readySteps = [admins.length > 0, skills.some((item) => item.status === "active"), activeProviders > 0, activeLine > 0].filter(Boolean).length;
-  const progress = readySteps * 25;
   const steps = [
-    { label: "Admin AI", detail: admins.length ? `${admins.length} คน` : "ยังไม่ได้สร้าง", done: admins.length > 0, icon: UserRoundCog, view: "admins" },
-    { label: "Skill การตอบ", detail: skills.length ? `${skills.length} Skill` : "ยังไม่ได้เพิ่ม", done: skills.some((item) => item.status === "active"), icon: Sparkles, view: "skills" },
+    { label: "Admin AI", detail: activeAdmins.length ? `${activeAdmins.length} คนพร้อมใช้` : "ยังไม่มี Admin ที่เปิดใช้งาน", done: activeAdmins.length > 0, icon: UserRoundCog, view: "admins" },
+    { label: "Skill การตอบ", detail: routingSkills.length ? `${routingSkills.length} Skill พร้อม Routing` : "ยังไม่มี Skill ของ Admin ที่เปิดใช้", done: routingSkills.length > 0, icon: Sparkles, view: "skills" },
     { label: "AI Provider", detail: activeProviders ? `${activeProviders} พร้อมใช้` : "ยังไม่ผ่านทดสอบ", done: activeProviders > 0, icon: BrainCircuit, view: "providers" },
     { label: "LINE OA", detail: activeLine ? `${activeLine} เชื่อมแล้ว` : "รอ Token และ Webhook", done: activeLine > 0, icon: PlugZap, view: "channels" },
   ];
+  const readySteps = steps.filter((step) => step.done).length;
+  const progress = readySteps * 25;
+  const nextStep = steps.find((step) => !step.done);
   const summary = report?.summary;
 
   return (
     <div className="mx-auto w-full max-w-7xl">
       <SectionTitle
         eyebrow="AI Call Center Control Room"
-        title={workspace?.name || "ศูนย์ควบคุม AdminOA"}
+        title={workspace?.name || "ศูนย์ควบคุม ChatMarathon"}
         detail="ดูข้อความจาก LINE OA ในกล่องกลาง พร้อมผลว่า AI Router เลือก Admin คนใด ใช้ Skill อะไร และเคสใดต้องส่งต่อพนักงานจริง"
         action={<Button onClick={() => onNavigate("inbox")} className="h-11 rounded-xl bg-slate-950 px-5 hover:bg-slate-800"><Headphones /> เปิดหน้ารับแชต</Button>}
       />
@@ -70,15 +74,15 @@ export function OverviewView({
       <section className="overflow-hidden rounded-[26px] bg-[#07161d] p-5 text-white shadow-xl shadow-slate-300/50 md:p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center">
           <div className="lg:w-72">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-cyan-300"><Route className="size-4" /> Live routing</div>
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.14em] text-emerald-300"><Route className="size-4" /> Live routing</div>
             <p className="mt-3 text-3xl font-black">{progress}%</p>
             <p className="mt-1 text-sm text-slate-300">ความพร้อมรับแชตจริงอัตโนมัติ</p>
-            <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-gradient-to-r from-cyan-300 to-emerald-400 transition-all" style={{ width: `${progress}%` }} /></div>
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-gradient-to-r from-emerald-300 to-emerald-400 transition-all" style={{ width: `${progress}%` }} /></div>
           </div>
           <div className="grid flex-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
             {steps.map(({ label, detail, done, icon: Icon, view }, index) => (
-              <button key={label} onClick={() => onNavigate(view)} className="group rounded-2xl border border-white/10 bg-white/5 p-4 text-left transition hover:border-cyan-300/40 hover:bg-white/10">
-                <div className="flex items-center gap-3"><span className={`flex size-9 items-center justify-center rounded-xl ${done ? "bg-emerald-400 text-slate-950" : "bg-white/10 text-slate-300"}`}>{done ? <CheckCircle2 className="size-5" /> : <Icon className="size-5" />}</span><span className="text-xs text-slate-400">ขั้นที่ {index + 1}</span><ArrowRight className="ml-auto size-4 text-slate-600 transition group-hover:text-cyan-300" /></div>
+              <button key={label} onClick={() => onNavigate(view)} className="group rounded-2xl border border-white/10 bg-white/5 p-4 text-left transition hover:border-emerald-300/40 hover:bg-white/10">
+                <div className="flex items-center gap-3"><span className={`flex size-9 items-center justify-center rounded-xl ${done ? "bg-emerald-400 text-slate-950" : "bg-white/10 text-slate-300"}`}>{done ? <CheckCircle2 className="size-5" /> : <Icon className="size-5" />}</span><span className="text-xs text-slate-400">ขั้นที่ {index + 1}</span><ArrowRight className="ml-auto size-4 text-slate-600 transition group-hover:text-emerald-300" /></div>
                 <p className="mt-4 font-bold">{label}</p>
                 <p className={`mt-1 text-xs ${done ? "text-emerald-300" : "text-amber-300"}`}>{detail}</p>
               </button>
@@ -87,9 +91,22 @@ export function OverviewView({
         </div>
       </section>
 
+      {nextStep ? (
+        <section role="alert" className="mt-4 flex flex-col gap-3 rounded-[20px] border border-amber-200 bg-amber-50 p-4 text-amber-950 sm:flex-row sm:items-center">
+          <CircleAlert className="size-5 shrink-0 text-amber-600" />
+          <div className="flex-1">
+            <p className="text-sm font-black">ระบบยังไม่พร้อมรับแชตจริง 100%</p>
+            <p className="mt-1 text-xs leading-5 text-amber-800">ขั้นตอนถัดไป: {nextStep.label} — {nextStep.detail}</p>
+          </div>
+          <Button onClick={() => onNavigate(nextStep.view)} className="h-10 rounded-xl bg-amber-950 text-amber-50 hover:bg-amber-800">
+            ตั้งค่าตอนนี้ <ArrowRight />
+          </Button>
+        </section>
+      ) : null}
+
       <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         {[
-          { label: "ข้อความวันนี้", value: summary?.inboundToday ?? 0, icon: MessagesSquare, tone: "bg-cyan-50 text-cyan-800" },
+          { label: "ข้อความวันนี้", value: summary?.inboundToday ?? 0, icon: MessagesSquare, tone: "bg-emerald-50 text-emerald-800" },
           { label: "AI ตอบแล้ว", value: summary?.aiToday ?? 0, icon: Bot, tone: "bg-indigo-50 text-indigo-700" },
           { label: "รอพนักงานจริง", value: summary?.humanHandoffConversations ?? 0, icon: CircleAlert, tone: "bg-amber-50 text-amber-700" },
           { label: "AI ปิดคำถามได้", value: `${summary?.aiResolutionRate ?? 0}%`, icon: CheckCircle2, tone: "bg-emerald-50 text-emerald-700" },
@@ -117,7 +134,7 @@ export function OverviewView({
                 <button key={item.id} onClick={() => onNavigate("inbox")} className="flex w-full items-center gap-3 py-3 text-left">
                   <ChannelMark platform={item.platform} compact />
                   <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-slate-900">{item.customerName}</p><p className="mt-0.5 truncate text-xs text-slate-500">{item.lastMessagePreview}</p></div>
-                  <div className="shrink-0 text-right"><p className={`text-xs font-bold ${item.humanTakeover ? "text-amber-700" : "text-indigo-700"}`}>{item.humanTakeover ? item.humanAgentName || "รอพนักงาน" : item.adminName || "รอ Router"}</p><p className="mt-1 text-[11px] text-slate-400">{formatDateTime(item.lastMessageAt)}</p></div>
+                  <div className="shrink-0 text-right"><p className={`text-xs font-bold ${item.humanTakeover ? "text-amber-700" : "text-indigo-700"}`}>{item.humanTakeover ? item.humanAgentName || "รอพนักงาน" : item.adminName || "รอ Router"}</p><p className="mt-1 text-xs text-slate-400">{formatDateTime(item.lastMessageAt)}</p></div>
                 </button>
               ))}
             </div>
@@ -136,7 +153,7 @@ export function OverviewView({
               ["05", "ส่งต่อเมื่อไม่มั่นใจ", "พัก AI และรอพนักงานจริง"],
             ].map(([number, title, detail]) => (
               <li key={number} className="flex gap-3">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-[11px] font-black text-cyan-300">{number}</span>
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-slate-950 text-xs font-black text-emerald-300">{number}</span>
                 <div><p className="text-sm font-bold text-slate-800">{title}</p><p className="text-xs text-slate-500">{detail}</p></div>
               </li>
             ))}
@@ -172,7 +189,7 @@ export function ReportsView({ report }: { report: ReportRecord | null }) {
               {days.map((day) => (
                 <div key={day.date} className="flex h-full flex-1 flex-col justify-end gap-2">
                   <div className="flex flex-1 items-end justify-center gap-1">
-                    <div className="w-[42%] rounded-t-lg bg-cyan-500" style={{ height: `${Math.max(day.inbound ? 8 : 2, (day.inbound / maxValue) * 100)}%` }} title={`ลูกค้า ${day.inbound}`} />
+                    <div className="w-[42%] rounded-t-lg bg-emerald-500" style={{ height: `${Math.max(day.inbound ? 8 : 2, (day.inbound / maxValue) * 100)}%` }} title={`ลูกค้า ${day.inbound}`} />
                     <div className="w-[42%] rounded-t-lg bg-indigo-500" style={{ height: `${Math.max(day.ai ? 8 : 2, (day.ai / maxValue) * 100)}%` }} title={`AI ${day.ai}`} />
                   </div>
                   <p className="text-center text-xs font-medium text-slate-500">{day.label}</p>
@@ -182,12 +199,12 @@ export function ReportsView({ report }: { report: ReportRecord | null }) {
           )}
         </article>
         <article className="rounded-[24px] bg-slate-950 p-6 text-white shadow-lg">
-          <Badge className="border-0 bg-cyan-300 text-slate-950">AI Quality</Badge>
+          <Badge className="border-0 bg-emerald-300 text-slate-950">AI Quality</Badge>
           <p className="mt-5 text-5xl font-black">{summary?.aiResolutionRate ?? 0}%</p>
           <p className="mt-2 text-sm text-slate-300">สัดส่วนบทสนทนาที่มีคำตอบจาก AI</p>
           <div className="mt-6 rounded-2xl bg-white/8 p-4">
             <p className="text-xs text-slate-400">เวลาประมวลผลเฉลี่ย</p>
-            <p className="mt-2 text-2xl font-bold text-cyan-300">{summary?.averageAiLatencyMs ? `${(summary.averageAiLatencyMs / 1000).toFixed(1)} วินาที` : "ยังไม่มีข้อมูล"}</p>
+            <p className="mt-2 text-2xl font-bold text-emerald-300">{summary?.averageAiLatencyMs ? `${(summary.averageAiLatencyMs / 1000).toFixed(1)} วินาที` : "ยังไม่มีข้อมูล"}</p>
           </div>
         </article>
       </div>

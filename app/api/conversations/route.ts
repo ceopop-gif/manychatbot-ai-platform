@@ -2,6 +2,7 @@ import { and, asc, desc, eq } from "drizzle-orm";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";
 import { adminProfiles, adminSkills, channelAccounts, conversations, messages, workspaces } from "@/db/schema";
+import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { decryptSecret } from "@/lib/secret-vault";
 
 function errorMessage(error: unknown) {
@@ -62,11 +63,11 @@ export async function POST(request: Request) {
     if (account.platform === "line") {
       const accessToken = await decryptSecret(account.accessTokenEncrypted);
       if (!accessToken) return Response.json({ error: "LINE OA ยังไม่มี Channel access token" }, { status: 422 });
-      const response = await fetch("https://api.line.me/v2/bot/message/push", {
+      const response = await fetchWithTimeout("https://api.line.me/v2/bot/message/push", {
         method: "POST",
         headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
         body: JSON.stringify({ to: conversation.externalUserId, messages: [{ type: "text", text: content }] }),
-      });
+      }, 10_000, "LINE ใช้เวลาส่งข้อความนานเกิน 10 วินาที");
       if (!response.ok) {
         deliveryStatus = "failed";
         const detail = await response.text().catch(() => "");
@@ -86,6 +87,7 @@ export async function POST(request: Request) {
       senderName: user.displayName,
       content,
       deliveryStatus,
+      createdAt: now,
     }).returning();
     await db.update(conversations).set({
       lastMessagePreview: content,

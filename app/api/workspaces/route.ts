@@ -26,7 +26,7 @@ async function ensureMasterWorkspace(user: { id: string; email: string; displayN
   await db.insert(workspaces).values({
     id: workspaceId,
     ownerUserId: user.id,
-    name: "MANYCHATBOT หลัก",
+    name: "ChatMarathon หลัก",
     systemCode: "MASTER",
     customerName: user.displayName,
     customerEmail: user.email,
@@ -56,8 +56,12 @@ export async function GET() {
         const systemBots = bots.filter((bot) => bot.workspaceId === system.id);
         const botIds = new Set(systemBots.map((bot) => bot.id));
         const systemAccounts = accounts.filter((account) => botIds.has(account.chatbotId));
+        const name = ["MANYCHATBOT หลัก", "ADMINOA หลัก"].includes(system.name)
+          ? "ChatMarathon หลัก"
+          : system.name;
         return {
           ...system,
+          name,
           botCount: systemBots.length,
           channelCount: systemAccounts.length,
           unreadCount: chats.filter((chat) => chat.workspaceId === system.id).reduce((sum, chat) => sum + chat.unreadCount, 0),
@@ -77,6 +81,7 @@ export async function POST(request: Request) {
       name?: string;
       customerName?: string;
       customerEmail?: string;
+      customerPhone?: string;
       plan?: string;
     };
     const name = payload.name?.trim() ?? "";
@@ -89,9 +94,10 @@ export async function POST(request: Request) {
       id: crypto.randomUUID(),
       ownerUserId: user.id,
       name,
-      systemCode: `MCB-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
+      systemCode: `CMR-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
       customerName: payload.customerName?.trim() ?? "",
       customerEmail: payload.customerEmail?.trim() ?? "",
+      customerPhone: payload.customerPhone?.trim() ?? "",
       plan,
     }).returning();
     return Response.json({ workspace: { ...workspace, botCount: 0, channelCount: 0, unreadCount: 0 } }, { status: 201 });

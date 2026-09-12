@@ -1,11 +1,17 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";
 import { adminProfiles, aiProviders, channelAccounts, chatbots, conversations } from "@/db/schema";
+import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { decryptSecret, encryptSecret } from "@/lib/secret-vault";
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "ไม่สามารถเชื่อมต่อบัญชีช่องทางได้";
+}
+
+async function lineFailure(response: Response) {
+  const payload = (await response.json().catch(() => ({}))) as { message?: string; reason?: string };
+  return (payload.message || payload.reason || `HTTP ${response.status}`).slice(0, 180);
 }
 
 function safeAccount(account: typeof channelAccounts.$inferSelect, origin: string, unreadCount = account.unreadCount) {
@@ -64,15 +70,13 @@ export async function POST(request: Request) {
     if (!bot) return Response.json({ error: "ไม่พบแชตบอตที่เลือก" }, { status: 404 });
     if (!bot.workspaceId) return Response.json({ error: "แชตบอตนี้ยังไม่อยู่ในระบบลูกค้า" }, { status: 422 });
 
-    const workspaceBots = await db.select({ id: chatbots.id }).from(chatbots).where(and(eq(chatbots.workspaceId, bot.workspaceId), eq(chatbots.ownerUserId, user.id)));
-    const [existingLine] = await db.select({ id: channelAccounts.id }).from(channelAccounts).where(and(
+    const [existingChannel] = await db.select({ id: channelAccounts.id }).from(channelAccounts).where(and(
       eq(channelAccounts.ownerUserId, user.id),
       eq(channelAccounts.platform, "line"),
-      inArray(channelAccounts.chatbotId, workspaceBots.map((item) => item.id))
+      eq(channelAccounts.channelId, channelId)
     )).limit(1);
-    if (existingLine) {
-      return Response.json({ error: "ระบบนี้เชื่อม LINE OA ได้ 1 บัญชีเท่านั้น กรุณาเปิดตั้งค่าบัญชีเดิม" }, { status: 409 });
-    }
+    if (existingChannel) return Response.json({ error: "Channel ID นี้เชื่อมอยู่ในระบบแล้ว กรุณาเปิดบัญชีเดิมเพื่อตั้งค่า" }, { status: 409 });
+
     if (payload.aiProviderId) {
       const [provider] = await db.select({ id: aiProviders.id }).from(aiProviders).where(and(
         eq(aiProviders.id, payload.aiProviderId),
@@ -144,6 +148,11 @@ export async function PATCH(request: Request) {
       ? await encryptSecret(payload.accessToken.trim())
       : current.accessTokenEncrypted;
     const webhookKey = current.webhookKey || crypto.randomUUID().replaceAll("-", "");
+    const credentialsChanged = Boolean(
+      (payload.channelId?.trim() && payload.channelId.trim() !== current.channelId) ||
+      payload.channelSecret?.trim() ||
+      payload.accessToken?.trim()
+    );
     const changes = {
       channelId: payload.channelId?.trim() ?? current.channelId,
       workspaceId: current.workspaceId || bot.workspaceId,
@@ -166,28 +175,59 @@ export async function PATCH(request: Request) {
       const accessToken = await decryptSecret(accessTokenEncrypted);
       const origin = new URL(request.url).origin;
       const webhookUrl = `${origin}/api/webhooks/line/${webhookKey}`;
-      const infoResponse = await fetch("https://api.line.me/v2/bot/info", {
+      const infoResponse = await fetchWithTimeout("https://api.line.me/v2/bot/info", {
         headers: { authorization: `Bearer ${accessToken}` },
-      });
-      if (!infoResponse.ok) throw new Error("LINE ปฏิเสธ Channel access token กรุณาตรวจสอบ Token อีกครั้ง");
+      }, 10_000, "LINE ใช้เวลาตรวจสอบ Token นานเกิน 10 วินาที");
+      if (!infoResponse.ok) {
+        return Response.json({ error: `LINE ปฏิเสธ Channel access token: ${await lineFailure(infoResponse)}` }, { status: 422 });
+      }
       const info = (await infoResponse.json()) as { userId?: string; displayName?: string };
-      const setWebhook = await fetch("https://api.line.me/v2/bot/channel/webhook/endpoint", {
+      const pendingAt = new Date().toISOString();
+      await db.update(channelAccounts).set({
+        ...changes,
+        externalId: info.userId || current.externalId,
+        accountName: current.accountName || info.displayName || "LINE OA",
+        status: "pending",
+        connectedAt: null,
+        updatedAt: pendingAt,
+      }).where(eq(channelAccounts.id, id));
+
+      const setWebhook = await fetchWithTimeout("https://api.line.me/v2/bot/channel/webhook/endpoint", {
         method: "PUT",
         headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
         body: JSON.stringify({ endpoint: webhookUrl }),
-      });
-      if (!setWebhook.ok) throw new Error("บันทึก Webhook URL ที่ LINE ไม่สำเร็จ");
+      }, 10_000, "LINE ใช้เวลาบันทึก Webhook นานเกิน 10 วินาที");
+      if (!setWebhook.ok) {
+        return Response.json({ error: `บันทึก Webhook URL ที่ LINE ไม่สำเร็จ: ${await lineFailure(setWebhook)}` }, { status: 502 });
+      }
+
+      const testWebhook = await fetchWithTimeout("https://api.line.me/v2/bot/channel/webhook/test", {
+        method: "POST",
+        headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
+        body: JSON.stringify({ endpoint: webhookUrl }),
+      }, 10_000, "LINE ใช้เวลาทดสอบ Webhook นานเกิน 10 วินาที");
+      const testResult = (await testWebhook.json().catch(() => ({}))) as { success?: boolean; reason?: string; detail?: string };
+      if (!testWebhook.ok || testResult.success !== true) {
+        const detail = (testResult.detail || testResult.reason || `HTTP ${testWebhook.status}`).slice(0, 180);
+        return Response.json({ error: `LINE เรียก Webhook ไม่สำเร็จ: ${detail}` }, { status: 502 });
+      }
+
+      const connectedAt = new Date().toISOString();
       const [account] = await db.update(channelAccounts).set({
         ...changes,
-        externalId: current.externalId || info.userId || "",
+        externalId: info.userId || current.externalId,
         accountName: current.accountName || info.displayName || "LINE OA",
         status: "active",
-        connectedAt: new Date().toISOString(),
+        connectedAt,
+        updatedAt: connectedAt,
       }).where(eq(channelAccounts.id, id)).returning();
       return Response.json({ account: safeAccount(account, origin), connected: true });
     }
 
-    const [account] = await db.update(channelAccounts).set(changes).where(eq(channelAccounts.id, id)).returning();
+    const [account] = await db.update(channelAccounts).set({
+      ...changes,
+      ...(credentialsChanged ? { status: "pending", connectedAt: null } : {}),
+    }).where(eq(channelAccounts.id, id)).returning();
     return Response.json({ account: safeAccount(account, new URL(request.url).origin), connected: false });
   } catch (error) {
     return Response.json({ error: errorMessage(error) }, { status: 500 });

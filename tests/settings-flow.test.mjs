@@ -11,6 +11,8 @@ test("LINE OA setup no longer requires a manually created chatbot", () => {
   assert.match(connections, /fetch\("\/api\/chatbots"/);
   assert.match(connections, /chatbotId: resolvedBotId/);
   assert.doesNotMatch(connections, /disabled=\{!bots\.length \|\| hasLineAccount\}/);
+  assert.match(connections, /Multi LINE OA/);
+  assert.doesNotMatch(connections, /รับได้ 1 LINE OA/);
 });
 
 test("AI settings support create, edit and automatic connection testing", () => {
@@ -26,6 +28,11 @@ test("LINE settings provide a direct route to AI configuration", () => {
   assert.match(connections, /onOpenProviders/);
   assert.match(connections, /ยังไม่ได้ตั้งค่า AI/);
   assert.match(connections, /เชื่อม LINE OA ได้ก่อน แต่ต้องตั้งค่า AI/);
+});
+
+test("dashboard includes ChatPOS payment management", () => {
+  assert.match(dashboard, /label: "ChatPOS Payment"/);
+  assert.match(dashboard, /<PaymentsView/);
 });
 
 

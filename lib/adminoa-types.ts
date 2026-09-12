@@ -4,6 +4,7 @@ export type WorkspaceRecord = {
   systemCode: string;
   customerName: string;
   customerEmail: string;
+  customerPhone: string;
   plan: string;
   status: string;
   botCount: number;
@@ -177,4 +178,44 @@ export type ReportRecord = {
     averageAiLatencyMs: number;
   };
   days: Array<{ date: string; label: string; inbound: number; ai: number }>;
+};
+
+export type PaymentProfileRecord = {
+  id: string;
+  workspaceId: string;
+  provider: "chatpos";
+  merchantId: string;
+  checkoutBaseUrl: string;
+  mode: "test" | "live";
+  status: string;
+  hasWebhookSecret: boolean;
+  updatedAt: string;
+};
+
+export type PaymentOrderRecord = {
+  id: string;
+  workspaceId: string;
+  reference: string;
+  customerName: string;
+  customerPhone: string;
+  description: string;
+  amountSatang: number;
+  currency: string;
+  status: "pending" | "paid" | "failed" | "cancelled" | "expired" | "refunded";
+  checkoutUrl: string;
+  transactionId: string;
+  expiresAt: string | null;
+  paidAt: string | null;
+  createdAt: string;
+};
+
+export type PaymentData = {
+  profile: PaymentProfileRecord | null;
+  orders: PaymentOrderRecord[];
+  summary: {
+    pendingCount: number;
+    paidCount: number;
+    paidAmountSatang: number;
+  };
+  webhookUrl: string;
 };

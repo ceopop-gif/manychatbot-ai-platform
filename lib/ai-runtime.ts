@@ -1,4 +1,5 @@
 import { decryptSecret } from "./secret-vault";
+import { fetchWithTimeout } from "./fetch-with-timeout";
 import { compileSkillMarkdown } from "./skill-markdown";
 
 export type ProviderConfig = {
@@ -180,7 +181,7 @@ export async function generateAiReply(
 
 async function callOpenAi(provider: ProviderConfig, apiKey: string, instruction: string, turns: ChatTurn[]) {
   const base = normalizeBaseUrl(provider.baseUrl || "https://api.openai.com/v1");
-  const response = await fetch(`${base}/responses`, {
+  const response = await fetchWithTimeout(`${base}/responses`, {
     method: "POST",
     headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
     body: JSON.stringify({
@@ -189,7 +190,7 @@ async function callOpenAi(provider: ProviderConfig, apiKey: string, instruction:
       input: turns.map((turn) => ({ role: turn.role, content: turn.content })),
       max_output_tokens: provider.maxOutputTokens,
     }),
-  });
+  }, 15_000, "OpenAI ใช้เวลาตอบกลับนานเกิน 15 วินาที");
   const data = await readProviderResponse(response);
   const text =
     textValue(data.output_text) ||
@@ -210,7 +211,7 @@ async function callOpenAi(provider: ProviderConfig, apiKey: string, instruction:
 
 async function callAnthropic(provider: ProviderConfig, apiKey: string, instruction: string, turns: ChatTurn[]) {
   const base = normalizeBaseUrl(provider.baseUrl || "https://api.anthropic.com/v1");
-  const response = await fetch(`${base}/messages`, {
+  const response = await fetchWithTimeout(`${base}/messages`, {
     method: "POST",
     headers: {
       "x-api-key": apiKey,
@@ -224,7 +225,7 @@ async function callAnthropic(provider: ProviderConfig, apiKey: string, instructi
       max_tokens: provider.maxOutputTokens,
       temperature: provider.temperature / 100,
     }),
-  });
+  }, 15_000, "Anthropic ใช้เวลาตอบกลับนานเกิน 15 วินาที");
   const data = await readProviderResponse(response);
   const text = arrayValue(data.content)
     .map((item) => textValue(objectValue(item).text))
@@ -243,7 +244,7 @@ async function callAnthropic(provider: ProviderConfig, apiKey: string, instructi
 async function callGemini(provider: ProviderConfig, apiKey: string, instruction: string, turns: ChatTurn[]) {
   const base = normalizeBaseUrl(provider.baseUrl || "https://generativelanguage.googleapis.com/v1beta");
   const model = encodeURIComponent(provider.model);
-  const response = await fetch(`${base}/models/${model}:generateContent`, {
+  const response = await fetchWithTimeout(`${base}/models/${model}:generateContent`, {
     method: "POST",
     headers: { "x-goog-api-key": apiKey, "content-type": "application/json" },
     body: JSON.stringify({
@@ -257,7 +258,7 @@ async function callGemini(provider: ProviderConfig, apiKey: string, instruction:
         maxOutputTokens: provider.maxOutputTokens,
       },
     }),
-  });
+  }, 15_000, "Gemini ใช้เวลาตอบกลับนานเกิน 15 วินาที");
   const data = await readProviderResponse(response);
   const candidate = objectValue(arrayValue(data.candidates)[0]);
   const content = objectValue(candidate.content);
@@ -278,7 +279,7 @@ async function callGemini(provider: ProviderConfig, apiKey: string, instruction:
 async function callOpenAiCompatible(provider: ProviderConfig, apiKey: string, instruction: string, turns: ChatTurn[]) {
   const base = normalizeBaseUrl(provider.baseUrl);
   if (!base) throw new Error("กรุณากรอก HTTPS Endpoint ของ Java/Custom API");
-  const response = await fetch(`${base}/chat/completions`, {
+  const response = await fetchWithTimeout(`${base}/chat/completions`, {
     method: "POST",
     headers: { authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
     body: JSON.stringify({
@@ -287,7 +288,7 @@ async function callOpenAiCompatible(provider: ProviderConfig, apiKey: string, in
       temperature: provider.temperature / 100,
       max_tokens: provider.maxOutputTokens,
     }),
-  });
+  }, 15_000, "AI Endpoint ใช้เวลาตอบกลับนานเกิน 15 วินาที");
   const data = await readProviderResponse(response);
   const choice = objectValue(arrayValue(data.choices)[0]);
   const message = objectValue(choice.message);

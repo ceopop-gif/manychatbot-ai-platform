@@ -19,13 +19,13 @@
 }
 
 :root {
-  --background: #edf2f5;
-  --foreground: #0f172a;
+  --background: #f0f7f3;
+  --foreground: #102218;
   --card: #ffffff;
   --card-foreground: #171717;
   --popover: #ffffff;
   --popover-foreground: #171717;
-  --primary: #0e7490;
+  --primary: #06c755;
   --primary-foreground: #fafafa;
   --secondary: #f5f5f5;
   --secondary-foreground: #171717;
@@ -36,21 +36,21 @@
   --destructive: #e7000b;
   --border: #e5e5e5;
   --input: #e5e5e5;
-  --ring: #0891b2;
+  --ring: #06c755;
   --chart-1: #f54900;
   --chart-2: #009689;
   --chart-3: #104e64;
   --chart-4: #ffb900;
   --chart-5: #fe9a00;
   --radius: 0.8rem;
-  --sidebar: #07161d;
+  --sidebar: #0b2114;
   --sidebar-foreground: #e2e8f0;
-  --sidebar-primary: #22d3ee;
-  --sidebar-primary-foreground: #07161d;
-  --sidebar-accent: #102832;
+  --sidebar-primary: #06c755;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #153823;
   --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #17343f;
-  --sidebar-ring: #22d3ee;
+  --sidebar-border: #234c31;
+  --sidebar-ring: #06c755;
 }
 
 @theme inline {
@@ -92,24 +92,45 @@
   --font-sans: "Noto Sans Thai", "Leelawadee UI", Tahoma, Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
     "Liberation Mono", "Courier New", monospace;
+  --text-xs: 0.875rem;
+  --text-xs--line-height: 1.25rem;
+  --text-sm: 1rem;
+  --text-sm--line-height: 1.5rem;
+  --text-base: 1.0625rem;
+  --text-base--line-height: 1.75rem;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: "Noto Sans Thai", "Leelawadee UI", Tahoma, Arial, sans-serif;
+  font-size: 1.0625rem;
+  line-height: 1.7;
   margin: 0;
   min-width: 320px;
+  text-rendering: optimizeLegibility;
 }
 
 button, input, textarea { font: inherit; }
 * { box-sizing: border-box; }
 
 ::selection {
-  background: #67e8f9;
-  color: #07161d;
+  background: #9af0bb;
+  color: #102218;
 }
+
+html { scroll-behavior: smooth; }
 
 button, a, input, textarea {
   -webkit-tap-highlight-color: transparent;
+}
+
+@media (pointer: coarse) {
+  [data-slot="button"][data-size="default"],
+  [data-slot="button"][data-size="sm"],
+  [data-slot="button"][data-size="lg"],
+  [data-slot="input"],
+  [data-slot="select-trigger"] {
+    min-height: 2.75rem;
+  }
 }

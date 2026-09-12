@@ -5,7 +5,7 @@ import test from "node:test";
 const developmentPreviewMeta =
   /<meta(?=[^>]*\bname=["']codex-preview["'])(?=[^>]*\bcontent=["']development["'])[^>]*>/i;
 
-test("renders development preview metadata", async () => {
+test("renders the public ChatMarathon landing page without starter preview metadata", async () => {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
   const testWorkerUrl = new URL(`../dist/server/index.test-${process.pid}-${Date.now()}.mjs`, import.meta.url);
   const source = await readFile(workerUrl, "utf8");
@@ -35,7 +35,12 @@ test("renders development preview metadata", async () => {
       response.headers.get("content-type") ?? "",
       /^text\/html\b/i,
     );
-    assert.match(await response.text(), developmentPreviewMeta);
+    const html = await response.text();
+    assert.match(html, /ChatMarathon/);
+    assert.match(html, /MULTI LINE OA \+ AI/);
+    assert.match(html, /เข้าสู่ระบบ/);
+    assert.match(html, /href=["']\/admin["']/);
+    assert.doesNotMatch(html, developmentPreviewMeta);
   } finally {
     await unlink(testWorkerUrl);
   }

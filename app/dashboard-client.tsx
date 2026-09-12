@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   BarChart3,
@@ -11,15 +11,14 @@ import {
   ChevronDown,
   Crown,
   Headphones,
-  KeyRound,
   LayoutDashboard,
   LoaderCircle,
   Menu,
   Network,
-  Settings2,
   ShieldCheck,
   Sparkles,
   UserRoundCog,
+  WalletCards,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -30,6 +29,7 @@ import { AdminsView, SkillsView } from "@/components/adminoa/admin-skills";
 import { CallCenterView } from "@/components/adminoa/call-center";
 import { ChannelsView, ProvidersView } from "@/components/adminoa/connections";
 import { OverviewView, ReportsView } from "@/components/adminoa/overview-reports";
+import { PaymentsView } from "@/components/adminoa/payments";
 import { SystemsView } from "@/components/adminoa/systems";
 import type {
   AdminRecord,
@@ -37,12 +37,13 @@ import type {
   ChatbotRecord,
   ConversationRecord,
   ProviderRecord,
+  PaymentData,
   ReportRecord,
   SkillRecord,
   WorkspaceRecord,
 } from "@/lib/adminoa-types";
 
-type View = "overview" | "inbox" | "admins" | "skills" | "providers" | "channels" | "reports" | "systems";
+type View = "overview" | "inbox" | "admins" | "skills" | "providers" | "channels" | "payments" | "reports" | "systems";
 
 const navItems: Array<{ id: View; label: string; icon: typeof LayoutDashboard }> = [
   { id: "inbox", label: "ข้อความ LINE OA", icon: Headphones },
@@ -51,12 +52,13 @@ const navItems: Array<{ id: View; label: string; icon: typeof LayoutDashboard }>
   { id: "skills", label: "Skill ของ Admin", icon: Sparkles },
   { id: "providers", label: "ตั้งค่า AI", icon: BrainCircuit },
   { id: "channels", label: "เชื่อม LINE OA", icon: Network },
+  { id: "payments", label: "ChatPOS Payment", icon: WalletCards },
   { id: "reports", label: "รายงานการแชต", icon: BarChart3 },
   { id: "systems", label: "ระบบลูกค้า", icon: Building2 },
 ];
 
 export default function DashboardClient() {
-  const [view, setView] = useState<View>("inbox");
+  const [view, setView] = useState<View>("overview");
   const [mobileNav, setMobileNav] = useState(false);
   const [loading, setLoading] = useState(true);
   const [workspaceLoading, setWorkspaceLoading] = useState(false);
@@ -69,13 +71,16 @@ export default function DashboardClient() {
   const [providers, setProviders] = useState<ProviderRecord[]>([]);
   const [conversations, setConversations] = useState<ConversationRecord[]>([]);
   const [report, setReport] = useState<ReportRecord | null>(null);
+  const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState("");
+  const workspaceRequestRef = useRef(0);
+  const activeWorkspaceRef = useRef("");
 
   const activeWorkspace = workspaces.find((item) => item.id === activeWorkspaceId);
   const workspaceBots = bots.filter((item) => item.workspaceId === activeWorkspaceId);
   const workspaceBotIds = useMemo(() => new Set(workspaceBots.map((item) => item.id)), [workspaceBots]);
   const workspaceAccounts = accounts.filter((item) => workspaceBotIds.has(item.chatbotId));
-  const currentTitle = navItems.find((item) => item.id === view)?.label ?? "AdminOA";
+  const currentTitle = navItems.find((item) => item.id === view)?.label ?? "ChatMarathon";
 
   const loadGlobal = useCallback(async (preferredWorkspaceId?: string) => {
     const [workspaceResponse, botResponse, accountResponse] = await Promise.all([
@@ -103,36 +108,43 @@ export default function DashboardClient() {
 
   const loadWorkspaceData = useCallback(async (workspaceId: string) => {
     if (!workspaceId) return;
+    const requestId = workspaceRequestRef.current + 1;
+    workspaceRequestRef.current = requestId;
     setWorkspaceLoading(true);
     try {
       const query = encodeURIComponent(workspaceId);
-      const [adminResponse, skillResponse, providerResponse, conversationResponse, reportResponse] = await Promise.all([
+      const [adminResponse, skillResponse, providerResponse, conversationResponse, reportResponse, paymentResponse] = await Promise.all([
         fetch(`/api/admins?workspaceId=${query}`),
         fetch(`/api/skills?workspaceId=${query}`),
         fetch(`/api/ai-providers?workspaceId=${query}`),
         fetch(`/api/conversations?workspaceId=${query}`),
         fetch(`/api/reports?workspaceId=${query}`),
+        fetch(`/api/payments?workspaceId=${query}`),
       ]);
-      const [adminData, skillData, providerData, conversationData, reportData] = await Promise.all([
+      const [adminData, skillData, providerData, conversationData, reportData, nextPaymentData] = await Promise.all([
         adminResponse.json(),
         skillResponse.json(),
         providerResponse.json(),
         conversationResponse.json(),
         reportResponse.json(),
+        paymentResponse.json(),
       ]);
-      if (!adminResponse.ok || !skillResponse.ok || !providerResponse.ok || !conversationResponse.ok || !reportResponse.ok) {
-        throw new Error(adminData.error || skillData.error || providerData.error || conversationData.error || reportData.error || "โหลดข้อมูลหลังบ้านไม่สำเร็จ");
+      if (!adminResponse.ok || !skillResponse.ok || !providerResponse.ok || !conversationResponse.ok || !reportResponse.ok || !paymentResponse.ok) {
+        throw new Error(adminData.error || skillData.error || providerData.error || conversationData.error || reportData.error || nextPaymentData.error || "โหลดข้อมูลหลังบ้านไม่สำเร็จ");
       }
+      if (requestId !== workspaceRequestRef.current) return;
       setAdmins(adminData.admins ?? []);
       setSkills(skillData.skills ?? []);
       setProviders(providerData.providers ?? []);
       setConversations(conversationData.conversations ?? []);
       setReport(reportData as ReportRecord);
+      setPaymentData(nextPaymentData as PaymentData);
       setLoadError("");
     } catch (error) {
+      if (requestId !== workspaceRequestRef.current) return;
       setLoadError(error instanceof Error ? error.message : "โหลดข้อมูลหลังบ้านไม่สำเร็จ");
     } finally {
-      setWorkspaceLoading(false);
+      if (requestId === workspaceRequestRef.current) setWorkspaceLoading(false);
     }
   }, []);
 
@@ -148,6 +160,7 @@ export default function DashboardClient() {
         conversationResponse.json(),
         reportResponse.json(),
       ]);
+      if (activeWorkspaceRef.current !== workspaceId) return;
       setConversations(conversationData.conversations ?? []);
       setReport(reportData as ReportRecord);
     } catch {
@@ -157,29 +170,38 @@ export default function DashboardClient() {
 
   useEffect(() => {
     let active = true;
-    loadGlobal()
-      .catch((error) => active && setLoadError(error instanceof Error ? error.message : "โหลดระบบไม่สำเร็จ"))
-      .finally(() => active && setLoading(false));
-    return () => { active = false; };
+    const timer = window.setTimeout(() => {
+      void loadGlobal()
+        .catch((error) => active && setLoadError(error instanceof Error ? error.message : "โหลดระบบไม่สำเร็จ"))
+        .finally(() => active && setLoading(false));
+    }, 0);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
   }, [loadGlobal]);
 
   useEffect(() => {
     if (!activeWorkspaceId) return;
-    void loadWorkspaceData(activeWorkspaceId);
+    activeWorkspaceRef.current = activeWorkspaceId;
+    const initialLoad = window.setTimeout(() => void loadWorkspaceData(activeWorkspaceId), 0);
     const timer = window.setInterval(() => void refreshLiveInbox(activeWorkspaceId), 8000);
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearTimeout(initialLoad);
+      window.clearInterval(timer);
+    };
   }, [activeWorkspaceId, loadWorkspaceData, refreshLiveInbox]);
 
-  async function reloadWorkspace() {
+  const reloadWorkspace = useCallback(async () => {
     if (activeWorkspaceId) await loadWorkspaceData(activeWorkspaceId);
-  }
+  }, [activeWorkspaceId, loadWorkspaceData]);
 
-  async function reloadEverything() {
+  const reloadEverything = useCallback(async () => {
     await loadGlobal(activeWorkspaceId);
     if (activeWorkspaceId) await loadWorkspaceData(activeWorkspaceId);
-  }
+  }, [activeWorkspaceId, loadGlobal, loadWorkspaceData]);
 
-  async function createWorkspace(payload: { name: string; customerName: string; customerEmail: string; plan: string }) {
+  async function createWorkspace(payload: { name: string; customerName: string; customerEmail: string; customerPhone: string; plan: string }) {
     try {
       const response = await fetch("/api/workspaces", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
       const data = await response.json();
@@ -225,39 +247,40 @@ export default function DashboardClient() {
           : view === "skills" ? <SkillsView workspaceId={activeWorkspaceId} admins={admins} skills={skills} onReload={reloadWorkspace} />
             : view === "providers" ? <ProvidersView workspaceId={activeWorkspaceId} providers={providers} onReload={reloadWorkspace} />
               : view === "channels" ? <ChannelsView workspaceId={activeWorkspaceId} bots={workspaceBots} accounts={workspaceAccounts} admins={admins} providers={providers} onReload={reloadEverything} onOpenProviders={() => setView("providers")} />
-                : view === "reports" ? <ReportsView report={report} />
+                : view === "payments" ? <PaymentsView workspaceId={activeWorkspaceId} data={paymentData} onReload={reloadWorkspace} />
+                  : view === "reports" ? <ReportsView report={report} />
                   : <SystemsView workspaces={workspaces} activeWorkspaceId={activeWorkspaceId} bots={bots} onSelectWorkspace={setActiveWorkspaceId} onCreateWorkspace={createWorkspace} onCreateBot={createBot} />;
 
   return (
-    <main className="min-h-screen bg-[#edf2f5] text-slate-950">
+    <main className="min-h-screen bg-[#f0f7f3] text-slate-950">
       <Toaster richColors position="top-right" />
       <div className="flex min-h-screen">
-        <aside className={`fixed inset-y-0 left-0 z-50 flex w-[270px] flex-col border-r border-white/10 bg-[#07161d] p-4 text-white transition-transform lg:static lg:translate-x-0 ${mobileNav ? "translate-x-0" : "-translate-x-full"}`}>
+        <aside className={`fixed inset-y-0 left-0 z-50 flex w-[270px] flex-col border-r border-white/10 bg-[#0b2114] p-4 text-white transition-transform lg:static lg:translate-x-0 ${mobileNav ? "translate-x-0" : "-translate-x-full"}`}>
           <div className="flex items-center gap-3 px-2 py-2">
-            <span className="relative flex size-11 items-center justify-center rounded-[15px] bg-gradient-to-br from-cyan-300 to-cyan-600 text-slate-950 shadow-lg shadow-cyan-950/40"><Bot className="size-5" /><span className="absolute -right-1 -top-1 size-3 rounded-full border-2 border-[#07161d] bg-emerald-400" /></span>
-            <div><p className="text-[17px] font-black tracking-tight">ADMINOA</p><p className="text-[10px] font-black tracking-[0.16em] text-cyan-300">MANYCHATBOT AI</p></div>
+            <span className="relative flex size-11 items-center justify-center rounded-[15px] bg-[#06C755] text-white shadow-lg shadow-emerald-950/40"><Bot className="size-5" /><span className="absolute -right-1 -top-1 size-3 rounded-full border-2 border-[#0b2114] bg-white" /></span>
+            <div><p className="text-[17px] font-black tracking-tight">ChatMarathon</p><p className="text-xs font-black tracking-[0.16em] text-emerald-300">MULTI LINE OA + AI</p></div>
             <button onClick={() => setMobileNav(false)} className="ml-auto lg:hidden" aria-label="ปิดเมนู"><X className="size-5" /></button>
           </div>
 
           <button onClick={() => navigate("systems")} className="mt-5 w-full rounded-2xl border border-white/10 bg-white/5 p-3 text-left transition hover:bg-white/10">
-            <div className="flex items-center gap-2 text-[11px] font-bold text-slate-400"><Crown className="size-4 text-amber-300" /> ระบบที่กำลังจัดการ</div>
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-400"><Crown className="size-4 text-amber-300" /> ระบบที่กำลังจัดการ</div>
             <p className="mt-2 truncate text-sm font-black">{activeWorkspace?.name || "กำลังโหลด…"}</p>
-            <p className="mt-1 truncate font-mono text-[10px] text-slate-500">{activeWorkspace?.systemCode || "ADMINOA"}</p>
+            <p className="mt-1 truncate font-mono text-xs text-slate-500">{activeWorkspace?.systemCode || "ChatMarathon"}</p>
           </button>
 
           <nav className="mt-5 space-y-1">
             {navItems.map(({ id, label, icon: Icon }) => {
               const badge = id === "inbox" ? conversations.filter((item) => item.unreadCount > 0).length : id === "admins" ? admins.length : id === "channels" ? workspaceAccounts.length : 0;
-              return <button key={id} onClick={() => navigate(id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${view === id ? "bg-cyan-300 text-slate-950 shadow-lg shadow-cyan-950/30" : "text-slate-300 hover:bg-white/7 hover:text-white"}`}><Icon className="size-[18px]" />{label}{badge > 0 && <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-black ${view === id ? "bg-slate-950 text-white" : "bg-white/10 text-cyan-200"}`}>{badge}</span>}</button>;
+              return <button key={id} onClick={() => navigate(id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${view === id ? "bg-[#06C755] text-white shadow-lg shadow-emerald-950/30" : "text-slate-300 hover:bg-white/7 hover:text-white"}`}><Icon className="size-[18px]" />{label}{badge > 0 && <span className={`ml-auto rounded-full px-2 py-0.5 text-xs font-black ${view === id ? "bg-white text-[#087235]" : "bg-white/10 text-emerald-200"}`}>{badge}</span>}</button>;
             })}
           </nav>
 
           <div className="mt-auto border-t border-white/10 pt-4">
             <div className="rounded-2xl bg-white/5 p-3">
               <div className="flex items-center gap-2 text-xs font-bold text-slate-300"><ShieldCheck className="size-4 text-emerald-300" /> AI Router เลือกตาม Skill</div>
-              <div className="mt-3 grid grid-cols-3 gap-1 text-center"><div className="rounded-lg bg-white/5 p-2"><strong className="block text-sm text-white">{admins.length}</strong><span className="text-[9px] text-slate-500">Admin</span></div><div className="rounded-lg bg-white/5 p-2"><strong className="block text-sm text-white">{skills.length}</strong><span className="text-[9px] text-slate-500">Skill</span></div><div className="rounded-lg bg-white/5 p-2"><strong className="block text-sm text-white">{providers.filter((item) => item.status === "active").length}</strong><span className="text-[9px] text-slate-500">AI</span></div></div>
+              <div className="mt-3 grid grid-cols-3 gap-1 text-center"><div className="rounded-lg bg-white/5 p-2"><strong className="block text-sm text-white">{admins.length}</strong><span className="text-xs text-slate-500">Admin</span></div><div className="rounded-lg bg-white/5 p-2"><strong className="block text-sm text-white">{skills.length}</strong><span className="text-xs text-slate-500">Skill</span></div><div className="rounded-lg bg-white/5 p-2"><strong className="block text-sm text-white">{providers.filter((item) => item.status === "active").length}</strong><span className="text-xs text-slate-500">AI</span></div></div>
             </div>
-            <div className="mt-3 flex items-center gap-3 rounded-2xl bg-white/5 p-3"><span className="flex size-9 items-center justify-center rounded-xl bg-amber-100 text-amber-900"><Crown className="size-5" /></span><div className="min-w-0"><p className="truncate text-xs font-black">ดร.ป็อบ</p><p className="truncate text-[10px] text-slate-400">Super Master</p></div><ChevronDown className="ml-auto size-4 text-slate-500" /></div>
+            <div className="mt-3 flex items-center gap-3 rounded-2xl bg-white/5 p-3"><span className="flex size-9 items-center justify-center rounded-xl bg-amber-100 text-amber-900"><Crown className="size-5" /></span><div className="min-w-0"><p className="truncate text-xs font-black">ดร.ป็อบ</p><p className="truncate text-xs text-slate-400">Super Master</p></div><ChevronDown className="ml-auto size-4 text-slate-500" /></div>
           </div>
         </aside>
         {mobileNav && <button className="fixed inset-0 z-40 bg-slate-950/50 lg:hidden" onClick={() => setMobileNav(false)} aria-label="ปิดเมนู" />}
@@ -273,9 +296,9 @@ export default function DashboardClient() {
             </div>
           </header>
 
-          {loadError && <div className="border-b border-rose-200 bg-rose-50 px-5 py-3 text-sm font-semibold text-rose-800">{loadError}</div>}
+          {loadError && <div className="flex items-center gap-3 border-b border-rose-200 bg-rose-50 px-5 py-3 text-sm font-semibold text-rose-800"><span className="min-w-0 flex-1">{loadError}</span><Button type="button" variant="outline" size="sm" disabled={workspaceLoading} onClick={() => void reloadEverything()} className="shrink-0 border-rose-300 bg-white text-rose-800 hover:bg-rose-100">ลองอีกครั้ง</Button></div>}
           <div className={`relative min-h-0 flex-1 ${view === "inbox" ? "flex p-3 md:p-5" : "overflow-y-auto p-4 md:p-6"}`}>
-            {loading ? <div className="flex min-h-[70vh] w-full items-center justify-center"><LoaderCircle className="size-7 animate-spin text-cyan-700" /><span className="ml-3 text-sm font-semibold text-slate-500">กำลังโหลด AdminOA</span></div> : content}
+            {loading ? <div className="flex min-h-[70vh] w-full items-center justify-center"><LoaderCircle className="size-7 animate-spin text-emerald-700" /><span className="ml-3 text-sm font-semibold text-slate-500">กำลังโหลด ChatMarathon</span></div> : content}
             {workspaceLoading && !loading && <div className="pointer-events-none absolute right-4 top-4 flex items-center gap-2 rounded-full border border-slate-200 bg-white/90 px-3 py-1.5 text-xs font-semibold text-slate-500 shadow-sm backdrop-blur"><LoaderCircle className="size-3.5 animate-spin" /> อัปเดตข้อมูล</div>}
           </div>
         </div>

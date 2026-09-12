@@ -12,7 +12,7 @@ export function ChannelMark({ platform, compact = false }: { platform: string; c
   const meta = channelMeta[platform as keyof typeof channelMeta] ?? { label: platform, color: "#64748b", letter: "?" };
   return (
     <span
-      className={`inline-flex shrink-0 items-center justify-center rounded-[10px] font-black text-white ${compact ? "size-6 text-[11px]" : "size-10 text-sm"}`}
+      className={`inline-flex shrink-0 items-center justify-center rounded-[10px] font-black text-white ${compact ? "size-6 text-xs" : "size-10 text-sm"}`}
       style={{ background: meta.color }}
       aria-label={meta.label}
     >
@@ -35,7 +35,7 @@ export function SectionTitle({
   return (
     <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div>
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-cyan-700">{eyebrow}</p>
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-emerald-700">{eyebrow}</p>
         <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-950 md:text-[30px]">{title}</h1>
         <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">{detail}</p>
       </div>
@@ -85,9 +85,9 @@ export function EmptyState({
   );
 }
 
-export function AdminAvatar({ name, avatarId, color = "cyan", small = false }: { name: string; avatarId?: string; color?: string; small?: boolean }) {
+export function AdminAvatar({ name, avatarId, color = "emerald", small = false }: { name: string; avatarId?: string; color?: string; small?: boolean }) {
   const palette: Record<string, string> = {
-    cyan: "from-cyan-500 to-cyan-800",
+    emerald: "from-emerald-500 to-emerald-800",
     indigo: "from-indigo-500 to-indigo-800",
     amber: "from-amber-400 to-orange-600",
     rose: "from-rose-500 to-pink-800",
@@ -110,7 +110,7 @@ export function AdminAvatar({ name, avatarId, color = "cyan", small = false }: {
     );
   }
   return (
-    <span className={`inline-flex shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br font-black text-white shadow-sm ${palette[color] ?? palette.cyan} ${small ? "size-9 text-xs" : "size-12 text-sm"}`}>
+    <span className={`inline-flex shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br font-black text-white shadow-sm ${palette[color] ?? palette.emerald} ${small ? "size-9 text-xs" : "size-12 text-sm"}`}>
       {name.trim().slice(0, 2) || <Bot className="size-5" />}
     </span>
   );

@@ -118,3 +118,15 @@ test("compiles every AI employee field together with the skill as Markdown", asy
     assert.match(markdown, new RegExp(expected.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   }
 });
+
+test("normalizes ChatPOS statuses and never downgrades a confirmed payment", async () => {
+  const { normalizePaymentStatus, resolvePaymentStatus } = await vite.ssrLoadModule("/lib/payment-status.ts");
+  assert.equal(normalizePaymentStatus(" completed "), "paid");
+  assert.equal(normalizePaymentStatus("unknown"), null);
+  assert.equal(resolvePaymentStatus("pending", "paid"), "paid");
+  assert.equal(resolvePaymentStatus("paid", "expired"), "paid");
+  assert.equal(resolvePaymentStatus("paid", "refunded"), "refunded");
+  assert.equal(resolvePaymentStatus("refunded", "paid"), "refunded");
+  assert.equal(resolvePaymentStatus("failed", "paid"), "paid");
+  assert.equal(resolvePaymentStatus("cancelled", "expired"), "cancelled");
+});

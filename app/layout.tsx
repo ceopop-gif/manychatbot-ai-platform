@@ -2,9 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "AdminOA | AI Router เลือก Admin ตาม Skill",
-  description: "กล่องข้อความกลางสำหรับ LINE OA ที่วิเคราะห์คำถาม เลือก Admin AI ผู้เชี่ยวชาญตาม Skill และส่งต่อพนักงานจริงเมื่อ AI ตอบไม่ได้",
-  other: { "codex-preview": "development" },
+  title: "ChatMarathon | หลาย LINE OA + AI + ChatPOS",
+  description: "หลังบ้านรวมหลาย LINE OA และ Admin AI พร้อมกล่องข้อความกลาง ระบบ Skill Router และลิงก์รับชำระเงินผ่าน ChatPOS",
   icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
 };
 

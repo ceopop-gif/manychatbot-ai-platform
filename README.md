@@ -28,9 +28,9 @@ Scripts that need writable project-scoped home, npm, XDG, and temporary paths us
 - `examples/d1/` contains an optional D1 example surface
 - `drizzle.config.ts` supports local migration generation when needed
 
-## AdminOA Runtime
+## ChatMarathon Runtime
 
-AdminOA keeps workspace records, Admin profiles, versioned Skills, channel
+ChatMarathon keeps workspace records, Admin profiles, versioned Skills, channel
 accounts, conversations, messages, and AI Provider settings in D1.
 
 Production requires `ADMINOA_ENCRYPTION_KEY`, a Base64URL-encoded 32-byte
