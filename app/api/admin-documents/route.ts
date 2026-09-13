@@ -1,5 +1,5 @@
 import { and, desc, eq } from "drizzle-orm";
-import { getChatGPTUser } from "@/app/chatgpt-auth";
+import { getMerchantUser } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";
 import { adminDocuments, adminProfiles } from "@/db/schema";
 import {
@@ -143,7 +143,7 @@ async function ownedAdmin(ownerUserId: string, adminId: string) {
 
 export async function GET(request: Request) {
   try {
-    const user = await getChatGPTUser();
+    const user = await getMerchantUser();
     if (!user) return Response.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
     const url = new URL(request.url);
     const documentId = url.searchParams.get("id")?.trim() ?? "";
@@ -187,7 +187,7 @@ export async function POST(request: Request) {
   let storedKey = "";
   let recordInserted = false;
   try {
-    const user = await getChatGPTUser();
+    const user = await getMerchantUser();
     if (!user) return Response.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
     const upload = await parseUpload(request);
     const admin = await ownedAdmin(user.id, upload.adminId);
@@ -248,7 +248,7 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const user = await getChatGPTUser();
+    const user = await getMerchantUser();
     if (!user) return Response.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
     const payload = (await request.json()) as { id?: string };
     const id = payload.id?.trim() ?? "";

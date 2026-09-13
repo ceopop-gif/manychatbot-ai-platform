@@ -30,9 +30,14 @@ export default function AuthClient({ mode }: { mode: "login" | "register" }) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ username, displayName, email, password, confirmPassword, returnTo }),
       });
-      const data = await response.json().catch(() => ({})) as { error?: string; returnTo?: string };
+      const data = await response.json().catch(() => ({})) as { error?: string; returnTo?: string; user?: { role?: "admin" | "merchant" } };
       if (!response.ok) throw new Error(data.error || "ไม่สามารถดำเนินการได้");
-      window.location.assign(data.returnTo || returnTo);
+      const destination = data.returnTo || returnTo;
+      if (destination === "/admin" || destination === "/store") {
+        window.location.assign(data.user?.role === "admin" ? "/admin" : "/store");
+      } else {
+        window.location.assign(destination);
+      }
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "ไม่สามารถดำเนินการได้");
     } finally {

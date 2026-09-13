@@ -1,5 +1,5 @@
 import { and, desc, eq } from "drizzle-orm";
-import { getChatGPTUser } from "@/app/chatgpt-auth";
+import { getMerchantUser } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";
 import { paymentOrders, paymentProfiles, workspaces } from "@/db/schema";
 
@@ -31,7 +31,7 @@ async function ownedWorkspace(workspaceId: string, ownerUserId: string) {
 
 export async function GET(request: Request) {
   try {
-    const user = await getChatGPTUser();
+    const user = await getMerchantUser();
     if (!user) return Response.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
     const url = new URL(request.url);
     const workspaceId = url.searchParams.get("workspaceId")?.trim() ?? "";
@@ -58,7 +58,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const user = await getChatGPTUser();
+    const user = await getMerchantUser();
     if (!user) return Response.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
     const payload = (await request.json()) as {
       workspaceId?: string;
@@ -113,7 +113,7 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const user = await getChatGPTUser();
+    const user = await getMerchantUser();
     if (!user) return Response.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
     const payload = (await request.json()) as { id?: string; action?: "cancel" };
     const id = payload.id?.trim() ?? "";

@@ -9,6 +9,7 @@ export const authUsers = pgTable(
     displayName: text("display_name").notNull(),
     email: text("email").notNull().default(""),
     passwordHash: text("password_hash").notNull(),
+    role: text("role").notNull().default("merchant"),
     failedLoginCount: integer("failed_login_count").notNull().default(0),
     lockedUntil: text("locked_until"),
     status: text("status").notNull().default("active"),

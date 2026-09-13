@@ -7,8 +7,8 @@
 6 silly config load:file:C:\Users\Haiphee\AppData\Roaming\npm\etc\npmrc
 7 verbose title npm run lint
 8 verbose argv "run" "lint"
-9 verbose logfile logs-max:10 dir:D:\Project\manychatbot-ai-platform\.sites-runtime\npm-cache\_logs\2026-09-13T03_55_33_235Z-
-10 verbose logfile D:\Project\manychatbot-ai-platform\.sites-runtime\npm-cache\_logs\2026-09-13T03_55_33_235Z-debug-0.log
+9 verbose logfile logs-max:10 dir:D:\Project\manychatbot-ai-platform\.sites-runtime\npm-cache\_logs\2026-09-13T04_32_32_254Z-
+10 verbose logfile D:\Project\manychatbot-ai-platform\.sites-runtime\npm-cache\_logs\2026-09-13T04_32_32_254Z-debug-0.log
 11 silly logfile start cleaning logs, removing 1 files
 12 silly logfile done cleaning log files
 13 verbose cwd D:\Project\manychatbot-ai-platform

@@ -1,5 +1,5 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
-import { getChatGPTUser } from "@/app/chatgpt-auth";
+import { getMerchantUser } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";
 import { channelAccounts, chatbots, conversations, workspaces } from "@/db/schema";
 
@@ -42,7 +42,7 @@ async function ensureMasterWorkspace(user: { id: string; email: string; displayN
 
 export async function GET() {
   try {
-    const user = await getChatGPTUser();
+    const user = await getMerchantUser();
     if (!user) return Response.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
     const db = getDb();
     const systems = await ensureMasterWorkspace(user);
@@ -75,7 +75,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const user = await getChatGPTUser();
+    const user = await getMerchantUser();
     if (!user) return Response.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
     const payload = (await request.json()) as {
       name?: string;

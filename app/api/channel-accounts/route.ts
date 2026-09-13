@@ -1,5 +1,5 @@
 import { and, desc, eq } from "drizzle-orm";
-import { getChatGPTUser } from "@/app/chatgpt-auth";
+import { getMerchantUser } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";
 import { adminProfiles, aiProviders, channelAccounts, chatbots, conversations } from "@/db/schema";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
@@ -27,7 +27,7 @@ function safeAccount(account: typeof channelAccounts.$inferSelect, origin: strin
 
 export async function GET(request: Request) {
   try {
-    const user = await getChatGPTUser();
+    const user = await getMerchantUser();
     if (!user) return Response.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
     const url = new URL(request.url);
     const chatbotId = url.searchParams.get("chatbotId");
@@ -45,7 +45,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const user = await getChatGPTUser();
+    const user = await getMerchantUser();
     if (!user) return Response.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
     const payload = (await request.json()) as {
       chatbotId?: string;
@@ -113,7 +113,7 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   try {
-    const user = await getChatGPTUser();
+    const user = await getMerchantUser();
     if (!user) return Response.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
     const payload = (await request.json()) as {
       id?: string;

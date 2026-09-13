@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { getChatGPTUser } from "@/app/chatgpt-auth";
+import { getMerchantUser } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";
 import { adminDocuments, adminProfiles, adminSkills } from "@/db/schema";
 import { compileSkillMarkdown } from "@/lib/skill-markdown";
@@ -8,7 +8,7 @@ export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> }
 ) {
-  const user = await getChatGPTUser();
+  const user = await getMerchantUser();
   if (!user) return Response.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
   const { id } = await context.params;
   const db = getDb();

@@ -14,10 +14,14 @@ const PASSWORD_MAX_LENGTH = 128;
 const DUMMY_PASSWORD = "chatmarathon-invalid-password";
 const DUMMY_HASH_PROMISE = hashPassword(DUMMY_PASSWORD);
 
+export type UserRole = "admin" | "merchant";
+
 export type AuthUser = {
   id: string;
+  username: string;
   displayName: string;
   email: string;
+  role: UserRole;
   fullName: string | null;
 };
 
@@ -110,6 +114,7 @@ export async function getAppUser(): Promise<AuthUser | null> {
       displayName: authUsers.displayName,
       email: authUsers.email,
       username: authUsers.username,
+      role: authUsers.role,
       status: authUsers.status,
       expiresAt: authSessions.expiresAt,
       lastSeenAt: authSessions.lastSeenAt,
@@ -128,7 +133,14 @@ export async function getAppUser(): Promise<AuthUser | null> {
   if (now.getTime() - new Date(record.lastSeenAt).getTime() > 5 * 60 * 1000) {
     await getDb().update(authSessions).set({ lastSeenAt: now.toISOString() }).where(eq(authSessions.tokenHash, hashSessionToken(rawToken)));
   }
-  return { id: record.userId, displayName: record.displayName, email: record.email, fullName: record.displayName };
+  return {
+    id: record.userId,
+    username: record.username,
+    displayName: record.displayName,
+    email: record.email,
+    role: record.role === "admin" ? "admin" : "merchant",
+    fullName: record.displayName,
+  };
 }
 
 export function loginPath(returnTo = "/admin"): string {

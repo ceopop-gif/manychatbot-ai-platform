@@ -125,6 +125,14 @@ button, a, input, textarea {
   -webkit-tap-highlight-color: transparent;
 }
 
+button, a {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
 @media (pointer: coarse) {
   [data-slot="button"][data-size="default"],
   [data-slot="button"][data-size="sm"],

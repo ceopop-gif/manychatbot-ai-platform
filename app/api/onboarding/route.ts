@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { getChatGPTUser } from "@/app/chatgpt-auth";
+import { getMerchantUser } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";
 import { aiProviders, channelAccounts, chatbots, paymentProfiles, workspaces } from "@/db/schema";
 import { encryptSecret } from "@/lib/secret-vault";
@@ -10,7 +10,7 @@ function errorMessage(error: unknown) {
 
 export async function POST(request: Request) {
   try {
-    const user = await getChatGPTUser();
+    const user = await getMerchantUser();
     if (!user) return Response.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
     const payload = (await request.json()) as {
       workspaceName?: string;

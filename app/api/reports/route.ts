@@ -1,11 +1,11 @@
 import { and, desc, eq } from "drizzle-orm";
-import { getChatGPTUser } from "@/app/chatgpt-auth";
+import { getMerchantUser } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";
 import { conversations, messages, workspaces } from "@/db/schema";
 
 export async function GET(request: Request) {
   try {
-    const user = await getChatGPTUser();
+    const user = await getMerchantUser();
     if (!user) return Response.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
     const workspaceId = new URL(request.url).searchParams.get("workspaceId")?.trim() ?? "";
     const db = getDb();

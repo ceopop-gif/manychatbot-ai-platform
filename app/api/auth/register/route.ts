@@ -47,7 +47,8 @@ export async function POST(request: Request) {
       displayName: displayName || username,
       email,
       passwordHash: await hashPassword(password),
-    }).returning({ id: authUsers.id, username: authUsers.username, displayName: authUsers.displayName });
+      role: "merchant",
+    }).returning({ id: authUsers.id, username: authUsers.username, displayName: authUsers.displayName, role: authUsers.role });
     await createSession(user.id);
     return Response.json({ user, returnTo: safeReturnPath(payload?.returnTo ?? "/signup") }, { status: 201 });
   } catch (error) {

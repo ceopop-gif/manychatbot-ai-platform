@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Activity,
   BarChart3,
@@ -43,22 +45,24 @@ import type {
   WorkspaceRecord,
 } from "@/lib/adminoa-types";
 
-type View = "overview" | "inbox" | "admins" | "skills" | "providers" | "channels" | "payments" | "reports" | "systems";
+export type View = "overview" | "inbox" | "admins" | "skills" | "providers" | "channels" | "payments" | "reports" | "systems";
 
-const navItems: Array<{ id: View; label: string; icon: typeof LayoutDashboard }> = [
-  { id: "inbox", label: "ข้อความ LINE OA", icon: Headphones },
-  { id: "overview", label: "ภาพรวมระบบ", icon: LayoutDashboard },
-  { id: "admins", label: "Admin AI", icon: UserRoundCog },
-  { id: "skills", label: "Skill ของ Admin", icon: Sparkles },
-  { id: "providers", label: "ตั้งค่า AI", icon: BrainCircuit },
-  { id: "channels", label: "เชื่อม LINE OA", icon: Network },
-  { id: "payments", label: "ChatPOS Payment", icon: WalletCards },
-  { id: "reports", label: "รายงานการแชต", icon: BarChart3 },
-  { id: "systems", label: "ระบบลูกค้า", icon: Building2 },
+const navItems: Array<{ id: View; label: string; href: string; icon: typeof LayoutDashboard }> = [
+  { id: "inbox", label: "ข้อความ LINE OA", href: "/store/inbox", icon: Headphones },
+  { id: "overview", label: "ภาพรวมระบบ", href: "/store", icon: LayoutDashboard },
+  { id: "admins", label: "Admin AI", href: "/store/admins", icon: UserRoundCog },
+  { id: "skills", label: "Skill ของ Admin", href: "/store/skills", icon: Sparkles },
+  { id: "providers", label: "ตั้งค่า AI", href: "/store/ai", icon: BrainCircuit },
+  { id: "channels", label: "เชื่อม LINE OA", href: "/store/line", icon: Network },
+  { id: "payments", label: "ChatPOS Payment", href: "/store/payments", icon: WalletCards },
+  { id: "reports", label: "รายงานการแชต", href: "/store/reports", icon: BarChart3 },
+  { id: "systems", label: "ระบบร้านค้า", href: "/store/systems", icon: Building2 },
 ];
 
-export default function DashboardClient() {
-  const [view, setView] = useState<View>("overview");
+export default function DashboardClient({ displayName = "บัญชีร้านค้า", initialView = "overview" }: { displayName?: string; initialView?: View }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const view = navItems.find((item) => item.href === pathname)?.id ?? initialView;
   const [mobileNav, setMobileNav] = useState(false);
   const [loading, setLoading] = useState(true);
   const [workspaceLoading, setWorkspaceLoading] = useState(false);
@@ -246,17 +250,19 @@ export default function DashboardClient() {
   }
 
   function navigate(next: string) {
-    setView(next as View);
+    const nextView = next as View;
+    const nextItem = navItems.find((item) => item.id === nextView);
+    if (nextItem) router.push(nextItem.href);
     setMobileNav(false);
   }
 
   const content =
     view === "overview" ? <OverviewView workspace={activeWorkspace} admins={admins} skills={skills} providers={providers} accounts={workspaceAccounts} conversations={conversations} report={report} onNavigate={navigate} />
       : view === "inbox" ? <CallCenterView workspaceId={activeWorkspaceId} conversations={conversations} admins={admins} onReload={reloadWorkspace} onNavigate={navigate} />
-        : view === "admins" ? <AdminsView workspaceId={activeWorkspaceId} admins={admins} onReload={reloadWorkspace} onOpenSkills={() => setView("skills")} />
+        : view === "admins" ? <AdminsView workspaceId={activeWorkspaceId} admins={admins} onReload={reloadWorkspace} onOpenSkills={() => navigate("skills")} />
           : view === "skills" ? <SkillsView workspaceId={activeWorkspaceId} admins={admins} skills={skills} onReload={reloadWorkspace} />
             : view === "providers" ? <ProvidersView workspaceId={activeWorkspaceId} providers={providers} onReload={reloadWorkspace} />
-              : view === "channels" ? <ChannelsView workspaceId={activeWorkspaceId} bots={workspaceBots} accounts={workspaceAccounts} admins={admins} providers={providers} onReload={reloadEverything} onOpenProviders={() => setView("providers")} />
+                : view === "channels" ? <ChannelsView workspaceId={activeWorkspaceId} bots={workspaceBots} accounts={workspaceAccounts} admins={admins} providers={providers} onReload={reloadEverything} onOpenProviders={() => navigate("providers")} />
                 : view === "payments" ? <PaymentsView workspaceId={activeWorkspaceId} data={paymentData} onReload={reloadWorkspace} />
                   : view === "reports" ? <ReportsView report={report} />
                   : <SystemsView workspaces={workspaces} activeWorkspaceId={activeWorkspaceId} bots={bots} onSelectWorkspace={setActiveWorkspaceId} onCreateWorkspace={createWorkspace} onCreateBot={createBot} />;
@@ -279,9 +285,9 @@ export default function DashboardClient() {
           </button>
 
           <nav className="mt-5 space-y-1">
-            {navItems.map(({ id, label, icon: Icon }) => {
+            {navItems.map(({ id, label, href, icon: Icon }) => {
               const badge = id === "inbox" ? conversations.filter((item) => item.unreadCount > 0).length : id === "admins" ? admins.length : id === "channels" ? workspaceAccounts.length : 0;
-              return <button key={id} onClick={() => navigate(id)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${view === id ? "bg-[#06C755] text-white shadow-lg shadow-emerald-950/30" : "text-slate-300 hover:bg-white/7 hover:text-white"}`}><Icon className="size-[18px]" />{label}{badge > 0 && <span className={`ml-auto rounded-full px-2 py-0.5 text-xs font-black ${view === id ? "bg-white text-[#087235]" : "bg-white/10 text-emerald-200"}`}>{badge}</span>}</button>;
+              return <Link key={id} href={href} onClick={() => setMobileNav(false)} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${view === id ? "bg-[#06C755] text-white shadow-lg shadow-emerald-950/30" : "text-slate-300 hover:bg-white/7 hover:text-white"}`}><Icon className="size-[18px]" />{label}{badge > 0 && <span className={`ml-auto rounded-full px-2 py-0.5 text-xs font-black ${view === id ? "bg-white text-[#087235]" : "bg-white/10 text-emerald-200"}`}>{badge}</span>}</Link>;
             })}
           </nav>
 
@@ -290,7 +296,7 @@ export default function DashboardClient() {
               <div className="flex items-center gap-2 text-xs font-bold text-slate-300"><ShieldCheck className="size-4 text-emerald-300" /> AI Router เลือกตาม Skill</div>
               <div className="mt-3 grid grid-cols-3 gap-1 text-center"><div className="rounded-lg bg-white/5 p-2"><strong className="block text-sm text-white">{admins.length}</strong><span className="text-xs text-slate-500">Admin</span></div><div className="rounded-lg bg-white/5 p-2"><strong className="block text-sm text-white">{skills.length}</strong><span className="text-xs text-slate-500">Skill</span></div><div className="rounded-lg bg-white/5 p-2"><strong className="block text-sm text-white">{providers.filter((item) => item.status === "active").length}</strong><span className="text-xs text-slate-500">AI</span></div></div>
             </div>
-            <div className="mt-3 flex items-center gap-3 rounded-2xl bg-white/5 p-3"><span className="flex size-9 items-center justify-center rounded-xl bg-amber-100 text-amber-900"><Crown className="size-5" /></span><div className="min-w-0"><p className="truncate text-xs font-black">บัญชีผู้ดูแล</p><p className="truncate text-xs text-slate-400">จัดการระบบ</p></div><button type="button" onClick={() => void logout()} className="ml-auto flex size-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-white/10 hover:text-white" aria-label="ออกจากระบบ" title="ออกจากระบบ"><LogOut className="size-4" /></button></div>
+            <div className="mt-3 flex items-center gap-3 rounded-2xl bg-white/5 p-3"><span className="flex size-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-900"><Crown className="size-5" /></span><div className="min-w-0"><p className="truncate text-xs font-black">{displayName}</p><p className="truncate text-xs text-slate-400">บัญชีร้านค้า · จัดการร้านของคุณ</p></div><button type="button" onClick={() => void logout()} className="ml-auto flex size-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-white/10 hover:text-white" aria-label="ออกจากระบบ" title="ออกจากระบบ"><LogOut className="size-4" /></button></div>
           </div>
         </aside>
         {mobileNav && <button className="fixed inset-0 z-40 bg-slate-950/50 lg:hidden" onClick={() => setMobileNav(false)} aria-label="ปิดเมนู" />}
@@ -302,7 +308,7 @@ export default function DashboardClient() {
             <div className="ml-auto flex items-center gap-2">
               {workspaces.length > 1 && <Select value={activeWorkspaceId} onValueChange={setActiveWorkspaceId}><SelectTrigger className="hidden h-9 w-52 rounded-xl md:flex"><SelectValue /></SelectTrigger><SelectContent>{workspaces.map((workspace) => <SelectItem key={workspace.id} value={workspace.id}>{workspace.name}</SelectItem>)}</SelectContent></Select>}
               <Button variant="outline" size="sm" className="hidden rounded-xl xl:flex" onClick={() => toast.success("สถานะระบบล่าสุด", { description: `${workspaceAccounts.filter((item) => item.status === "active").length} LINE OA พร้อม · ${providers.filter((item) => item.status === "active").length} AI พร้อม` })}><Activity /> สถานะรวม</Button>
-              <Button variant="ghost" size="icon-sm" className="relative" onClick={() => setView("inbox")} aria-label="การแจ้งเตือน"><Bell />{conversations.some((item) => item.unreadCount > 0 || item.status === "escalated") && <span className="absolute right-1 top-1 size-2 rounded-full border-2 border-white bg-rose-500" />}</Button>
+              <Button variant="ghost" size="icon-sm" className="relative" onClick={() => navigate("inbox")} aria-label="การแจ้งเตือน"><Bell />{conversations.some((item) => item.unreadCount > 0 || item.status === "escalated") && <span className="absolute right-1 top-1 size-2 rounded-full border-2 border-white bg-rose-500" />}</Button>
             </div>
           </header>
 

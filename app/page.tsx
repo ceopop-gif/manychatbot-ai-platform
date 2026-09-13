@@ -34,8 +34,8 @@ const features = [
 
 export default async function HomePage() {
   const user = await getChatGPTUser();
-  const dashboardHref = user ? "/admin" : loginPath("/admin");
-  const signupHref = user ? "/signup" : registerPath("/signup");
+  const dashboardHref = user ? (user.role === "admin" ? "/admin" : "/store") : loginPath("/admin");
+  const signupHref = user ? (user.role === "admin" ? "/admin" : "/signup") : registerPath("/signup");
 
   return (
     <main className="min-h-screen overflow-hidden bg-white text-[#102218]">

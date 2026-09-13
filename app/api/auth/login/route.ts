@@ -51,7 +51,7 @@ export async function POST(request: Request) {
   await getDb().update(authUsers).set({ failedLoginCount: 0, lockedUntil: null, updatedAt: new Date().toISOString() }).where(eq(authUsers.id, user.id));
   await createSession(user.id);
   return Response.json({
-    user: { id: user.id, username: user.username, displayName: user.displayName },
+    user: { id: user.id, username: user.username, displayName: user.displayName, role: user.role === "admin" ? "admin" : "merchant" },
     returnTo: safeReturnPath(payload?.returnTo ?? "/admin"),
   });
 }

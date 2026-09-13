@@ -28,7 +28,11 @@ Never commit `.env` or place provider, LINE, payment, database, or storage crede
 
 - Login: `/login`
 - Create an account: `/register`
-- Protected admin dashboard: `/admin`
+- Platform Admin dashboard: `/admin` (เฉพาะผู้ใช้ role `admin`)
+- Platform Admin pages: `/admin/merchants`, `/admin/access`, `/admin/billing`, `/admin/health`, `/admin/settings`
+- Merchant dashboard: `/store` (ผู้ใช้ที่สมัครใหม่จะเป็น role `merchant`)
+- Merchant pages: `/store/inbox`, `/store/admins`, `/store/skills`, `/store/ai`, `/store/line`, `/store/payments`, `/store/reports`, `/store/systems`
+- Platform Admin เห็นภาพรวมร้านค้า ผู้ใช้งาน แพ็กเกจ รายได้ และสุขภาพระบบ ส่วน Merchant เห็นเฉพาะข้อมูลร้านและ workspace ของตัวเอง
 - Passwords are stored as salted `scrypt` hashes; plaintext passwords are never stored or returned.
 - Sessions use random, database-hashed tokens in an `HttpOnly`, `SameSite=Strict` cookie and expire after seven days.
 - Login attempts are rate-limited and accounts are temporarily locked after repeated failures.
