@@ -7,14 +7,19 @@
   },
   "scripts": {
     "install:ci": "bash scripts/install-ci.sh",
-    "dev": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vite",
+    "dev": "node --env-file-if-exists=.env node_modules/vite/bin/vite.js",
     "build": "bash scripts/build-verified.sh",
-    "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
+    "start": "node --env-file-if-exists=.env node_modules/vinext/dist/cli.js start",
+    "build:production": "cross-env RUNTIME_TARGET=node node --env-file-if-exists=.env node_modules/vinext/dist/cli.js build",
+    "start:production": "cross-env RUNTIME_TARGET=node HOST=0.0.0.0 PORT=3000 node --env-file-if-exists=.env node_modules/vinext/dist/cli.js start",
     "test": "npm run build && node --test tests/*.test.mjs",
     "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next",
-    "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate"
+    "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate",
+    "db:generate:postgres": "node --env-file-if-exists=.env node_modules/drizzle-kit/bin.cjs generate --config drizzle.pg.config.ts",
+    "db:migrate:postgres": "node --env-file-if-exists=.env node_modules/drizzle-kit/bin.cjs migrate --config drizzle.pg.config.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1131.0",
     "@base-ui/react": "^1.7.0",
     "@hookform/resolvers": "^5.7.1",
     "@shadcn/react": "^0.3.0",
@@ -29,6 +34,7 @@
     "next": "16.2.6",
     "next-themes": "^0.4.6",
     "pdfjs-dist": "^6.3.289",
+    "postgres": "^3.4.9",
     "radix-ui": "^1.6.7",
     "react": "19.2.6",
     "react-day-picker": "^10.0.1",
@@ -49,6 +55,7 @@
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.2",
     "@vitejs/plugin-rsc": "0.5.26",
+    "cross-env": "^10.1.0",
     "drizzle-kit": "0.31.10",
     "eslint": "9.39.4",
     "eslint-config-next": "16.2.6",

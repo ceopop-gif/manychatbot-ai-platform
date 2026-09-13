@@ -1,5 +1,6 @@
 import vinext from "vinext";
 import { defineConfig } from "vite";
+import { resolve as resolvePath } from "node:path";
 import hostingConfig from "./.openai/hosting.json";
 import { sites } from "./build/sites-vite-plugin";
 
@@ -10,6 +11,7 @@ const { d1, r2 } = hostingConfig;
 
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
+const isNodeTarget = process.env.RUNTIME_TARGET === "node";
 
 const localBindingConfig = {
   main: "./worker/index.ts",
@@ -43,7 +45,25 @@ export default defineConfig(async () => {
   // Wrangler snapshots its log path while the Cloudflare plugin is imported.
   const { cloudflare } = await import("@cloudflare/vite-plugin");
 
+  const cloudflarePlugin = isNodeTarget
+    ? null
+    : (await import("@cloudflare/vite-plugin")).cloudflare({
+        viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
+        inspectorPort: false,
+        config: localBindingConfig,
+      });
+
   return {
+    resolve: isNodeTarget
+      ? {
+          alias: [
+            { find: "@/db/schema", replacement: resolvePath("db/schema.pg.ts") },
+            { find: "@/db", replacement: resolvePath("db/index.node.ts") },
+            { find: "@/lib/secret-vault", replacement: resolvePath("lib/secret-vault.node.ts") },
+            { find: "@/lib/storage", replacement: resolvePath("lib/storage/node.ts") },
+          ],
+        }
+      : undefined,
     server: {
       host: "0.0.0.0",
       allowedHosts: ["terminal.local"],
@@ -53,12 +73,8 @@ export default defineConfig(async () => {
     },
     plugins: [
       vinext(),
-      sites(),
-      cloudflare({
-        viteEnvironment: { name: "rsc", childEnvironments: ["ssr"] },
-        inspectorPort: false,
-        config: localBindingConfig,
-      }),
+      ...(isNodeTarget ? [] : [sites()]),
+      ...(cloudflarePlugin ? [cloudflarePlugin] : []),
     ],
   };
 });

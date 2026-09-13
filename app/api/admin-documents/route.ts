@@ -1,4 +1,3 @@
-import { env } from "cloudflare:workers";
 import { and, desc, eq } from "drizzle-orm";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";
@@ -16,6 +15,7 @@ import {
   type AdminDocumentType,
 } from "@/lib/admin-document-limits";
 import { recompileAdminSkills } from "@/lib/recompile-admin-skills";
+import { getStorage } from "@/lib/storage";
 
 type ParsedUpload = {
   adminId: string;
@@ -43,11 +43,6 @@ function errorMessage(error: unknown) {
 
 function cleanFileName(value: string) {
   return value.split(/[\\/]/).pop()?.replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 120) ?? "";
-}
-
-function documentBucket() {
-  if (!env.BUCKET) throw new Error("พื้นที่จัดเก็บไฟล์ยังไม่พร้อมใช้งาน กรุณาลองใหม่อีกครั้ง");
-  return env.BUCKET;
 }
 
 function safeDocument(document: typeof adminDocuments.$inferSelect) {
@@ -162,7 +157,7 @@ export async function GET(request: Request) {
         "cache-control": "private, no-store",
       };
       if (document.storageKey) {
-        const object = await documentBucket().get(document.storageKey);
+        const object = await getStorage().get(document.storageKey);
         if (object) return new Response(object.body, { headers });
       }
       if (fileType === "markdown") return new Response(document.content, { headers });
@@ -216,7 +211,7 @@ export async function POST(request: Request) {
 
     const id = crypto.randomUUID();
     storedKey = `admin-documents/${user.id}/${id}`;
-    await documentBucket().put(storedKey, upload.bytes, { httpMetadata: { contentType: upload.mimeType } });
+    await getStorage().put(storedKey, upload.bytes, upload.mimeType);
     const [document] = await db.insert(adminDocuments).values({
       id,
       ownerUserId: user.id,
@@ -240,9 +235,9 @@ export async function POST(request: Request) {
     }
     return Response.json({ document: safeDocument(document), recompiledSkillCount }, { status: 201 });
   } catch (error) {
-    if (storedKey && !recordInserted && env.BUCKET) {
+    if (storedKey && !recordInserted) {
       try {
-        await env.BUCKET.delete(storedKey);
+        await getStorage().delete(storedKey);
       } catch {
         // A later cleanup can remove an orphaned object if storage is temporarily unavailable.
       }
@@ -261,9 +256,9 @@ export async function DELETE(request: Request) {
     const [document] = await db.select().from(adminDocuments).where(and(eq(adminDocuments.id, id), eq(adminDocuments.ownerUserId, user.id))).limit(1);
     if (!document) return Response.json({ error: "ไม่พบไฟล์ความรู้" }, { status: 404 });
     await db.delete(adminDocuments).where(and(eq(adminDocuments.id, id), eq(adminDocuments.ownerUserId, user.id)));
-    if (document.storageKey && env.BUCKET) {
+    if (document.storageKey) {
       try {
-        await env.BUCKET.delete(document.storageKey);
+        await getStorage().delete(document.storageKey);
       } catch {
         // The knowledge record is already deleted; do not block the user on object cleanup.
       }

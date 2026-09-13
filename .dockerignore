@@ -1,0 +1,11 @@
+node_modules
+.git
+.gitignore
+.env*
+.sites-runtime
+.wrangler
+dist
+.next
+drizzle-pg
+coverage
+*.log

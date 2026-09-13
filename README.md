@@ -101,6 +101,22 @@ Use SIWC for account pages, user-specific dashboards, saved records, and write a
 - `npm test`: build and verify the rendered development-preview metadata
 - `npm run db:generate`: generate Drizzle migrations after schema changes
 
+## EasyPanel Production Target
+
+Codex Work keeps using the default Vinext/Cloudflare commands above. EasyPanel
+uses the separate Node target:
+
+- `npm run build:production`: build the Node application with PostgreSQL and S3 adapters
+- `npm run start:production`: start the application on `0.0.0.0:3000`
+- `npm run db:generate:postgres`: generate PostgreSQL migrations in `drizzle-pg/`
+- `npm run db:migrate:postgres`: apply PostgreSQL migrations using `DATABASE_URL`
+
+Set the variables in `.env.example` in the EasyPanel service. The production
+target expects PostgreSQL and an S3-compatible bucket such as MinIO. The
+Codex/OpenAI Workspace identity headers are only supplied by the Sites runtime;
+configure an application authentication provider before exposing the EasyPanel
+service publicly.
+
 Use build commands for targeted diagnosis after a remote failure, not as part of the normal checkpoint path.
 
 The timeout defaults can be overridden for a controlled canary with `SITES_INSTALL_TIMEOUT`, `SITES_INSTALL_KILL_AFTER`, `SITES_BUILD_TIMEOUT`, and `SITES_BUILD_KILL_AFTER`. A timeout fails the command; the helpers never retry an unchanged install or build.
