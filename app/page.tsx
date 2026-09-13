@@ -18,7 +18,8 @@ import {
   WalletCards,
   Webhook,
 } from "lucide-react";
-import { chatGPTSignInPath, getChatGPTUser } from "./chatgpt-auth";
+import { getChatGPTUser } from "./chatgpt-auth";
+import { loginPath, registerPath } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -33,8 +34,8 @@ const features = [
 
 export default async function HomePage() {
   const user = await getChatGPTUser();
-  const dashboardHref = user ? "/admin" : chatGPTSignInPath("/admin");
-  const signupHref = user ? "/signup" : chatGPTSignInPath("/signup");
+  const dashboardHref = user ? "/admin" : loginPath("/admin");
+  const signupHref = user ? "/signup" : registerPath("/signup");
 
   return (
     <main className="min-h-screen overflow-hidden bg-white text-[#102218]">

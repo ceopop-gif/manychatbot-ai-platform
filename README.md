@@ -24,6 +24,17 @@ Copy `.env.example` to `.env` and set the service credentials:
 
 Never commit `.env` or place provider, LINE, payment, database, or storage credentials in source files.
 
+## Authentication
+
+- Login: `/login`
+- Create an account: `/register`
+- Protected admin dashboard: `/admin`
+- Passwords are stored as salted `scrypt` hashes; plaintext passwords are never stored or returned.
+- Sessions use random, database-hashed tokens in an `HttpOnly`, `SameSite=Strict` cookie and expire after seven days.
+- Login attempts are rate-limited and accounts are temporarily locked after repeated failures.
+
+Run `npm run db:migrate` before first login so PostgreSQL has the `auth_users` and `auth_sessions` tables. Production deployments must use HTTPS so the session cookie can use the `Secure` flag.
+
 ## Local commands
 
 ```bash

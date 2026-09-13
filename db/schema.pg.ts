@@ -1,6 +1,43 @@
 import { sql } from "drizzle-orm";
 import { boolean, index, integer, pgTable, text, uniqueIndex } from "drizzle-orm/pg-core";
 
+export const authUsers = pgTable(
+  "auth_users",
+  {
+    id: text("id").primaryKey(),
+    username: text("username").notNull(),
+    displayName: text("display_name").notNull(),
+    email: text("email").notNull().default(""),
+    passwordHash: text("password_hash").notNull(),
+    failedLoginCount: integer("failed_login_count").notNull().default(0),
+    lockedUntil: text("locked_until"),
+    status: text("status").notNull().default("active"),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("idx_auth_users_username").on(table.username),
+    index("idx_auth_users_status").on(table.status),
+  ]
+);
+
+export const authSessions = pgTable(
+  "auth_sessions",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => authUsers.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: text("expires_at").notNull(),
+    lastSeenAt: text("last_seen_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("idx_auth_sessions_token_hash").on(table.tokenHash),
+    index("idx_auth_sessions_user_id").on(table.userId),
+    index("idx_auth_sessions_expires_at").on(table.expiresAt),
+  ]
+);
+
 export const workspaces = pgTable(
   "workspaces",
   {

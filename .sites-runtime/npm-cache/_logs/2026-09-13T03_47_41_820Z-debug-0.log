@@ -5,9 +5,9 @@
 4 silly config load:file:D:\Project\manychatbot-ai-platform\.npmrc
 5 silly config load:file:C:\Users\Haiphee\.npmrc
 6 silly config load:file:C:\Users\Haiphee\AppData\Roaming\npm\etc\npmrc
-7 verbose title npm run dev
-8 verbose argv "run" "dev"
-9 verbose logfile logs-max:10 dir:D:\Project\manychatbot-ai-platform\.sites-runtime\npm-cache\_logs\2026-09-13T03_21_58_636Z-
-10 verbose logfile D:\Project\manychatbot-ai-platform\.sites-runtime\npm-cache\_logs\2026-09-13T03_21_58_636Z-debug-0.log
+7 verbose title npm run dev --port 5173
+8 verbose argv "run" "dev" "--" "--port" "5173"
+9 verbose logfile logs-max:10 dir:D:\Project\manychatbot-ai-platform\.sites-runtime\npm-cache\_logs\2026-09-13T03_47_41_820Z-
+10 verbose logfile D:\Project\manychatbot-ai-platform\.sites-runtime\npm-cache\_logs\2026-09-13T03_47_41_820Z-debug-0.log
 11 silly logfile start cleaning logs, removing 1 files
 12 silly logfile done cleaning log files

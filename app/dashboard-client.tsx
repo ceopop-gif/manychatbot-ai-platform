@@ -8,11 +8,11 @@ import {
   Bot,
   BrainCircuit,
   Building2,
-  ChevronDown,
   Crown,
   Headphones,
   LayoutDashboard,
   LoaderCircle,
+  LogOut,
   Menu,
   Network,
   ShieldCheck,
@@ -81,6 +81,16 @@ export default function DashboardClient() {
   const workspaceBotIds = useMemo(() => new Set(workspaceBots.map((item) => item.id)), [workspaceBots]);
   const workspaceAccounts = accounts.filter((item) => workspaceBotIds.has(item.chatbotId));
   const currentTitle = navItems.find((item) => item.id === view)?.label ?? "ChatMarathon";
+
+  async function logout() {
+    if (!window.confirm("ต้องการออกจากระบบหรือไม่?")) return;
+    const response = await fetch("/api/auth/logout", { method: "POST" });
+    if (!response.ok) {
+      toast.error("ออกจากระบบไม่สำเร็จ");
+      return;
+    }
+    window.location.assign("/login");
+  }
 
   const loadGlobal = useCallback(async (preferredWorkspaceId?: string) => {
     const [workspaceResponse, botResponse, accountResponse] = await Promise.all([
@@ -280,7 +290,7 @@ export default function DashboardClient() {
               <div className="flex items-center gap-2 text-xs font-bold text-slate-300"><ShieldCheck className="size-4 text-emerald-300" /> AI Router เลือกตาม Skill</div>
               <div className="mt-3 grid grid-cols-3 gap-1 text-center"><div className="rounded-lg bg-white/5 p-2"><strong className="block text-sm text-white">{admins.length}</strong><span className="text-xs text-slate-500">Admin</span></div><div className="rounded-lg bg-white/5 p-2"><strong className="block text-sm text-white">{skills.length}</strong><span className="text-xs text-slate-500">Skill</span></div><div className="rounded-lg bg-white/5 p-2"><strong className="block text-sm text-white">{providers.filter((item) => item.status === "active").length}</strong><span className="text-xs text-slate-500">AI</span></div></div>
             </div>
-            <div className="mt-3 flex items-center gap-3 rounded-2xl bg-white/5 p-3"><span className="flex size-9 items-center justify-center rounded-xl bg-amber-100 text-amber-900"><Crown className="size-5" /></span><div className="min-w-0"><p className="truncate text-xs font-black">ดร.ป็อบ</p><p className="truncate text-xs text-slate-400">Super Master</p></div><ChevronDown className="ml-auto size-4 text-slate-500" /></div>
+            <div className="mt-3 flex items-center gap-3 rounded-2xl bg-white/5 p-3"><span className="flex size-9 items-center justify-center rounded-xl bg-amber-100 text-amber-900"><Crown className="size-5" /></span><div className="min-w-0"><p className="truncate text-xs font-black">บัญชีผู้ดูแล</p><p className="truncate text-xs text-slate-400">จัดการระบบ</p></div><button type="button" onClick={() => void logout()} className="ml-auto flex size-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-white/10 hover:text-white" aria-label="ออกจากระบบ" title="ออกจากระบบ"><LogOut className="size-4" /></button></div>
           </div>
         </aside>
         {mobileNav && <button className="fixed inset-0 z-40 bg-slate-950/50 lg:hidden" onClick={() => setMobileNav(false)} aria-label="ปิดเมนู" />}
