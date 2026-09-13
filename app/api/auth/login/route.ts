@@ -19,9 +19,10 @@ const LOCKOUT_MS = 15 * 60 * 1000;
 export async function POST(request: Request) {
   if (!isSameOriginRequest(request)) return Response.json({ error: "คำขอไม่ถูกต้อง" }, { status: 403 });
 
-  const payload = await request.json().catch(() => null) as { username?: string; password?: string; returnTo?: string } | null;
+  const payload = await request.json().catch(() => null) as { username?: string; password?: string; returnTo?: string; scope?: "admin" | "merchant" } | null;
   const username = normalizeUsername(payload?.username ?? "");
   const password = payload?.password ?? "";
+  const scope = payload?.scope === "admin" ? "admin" : "merchant";
   const rate = consumeLoginAttempt(getRequestRateLimitKey(request, username));
   if (!rate.allowed) {
     return new Response(JSON.stringify({ error: "พยายามเข้าสู่ระบบบ่อยเกินไป กรุณาลองใหม่ภายหลัง" }), {
@@ -46,6 +47,13 @@ export async function POST(request: Request) {
       }).where(and(eq(authUsers.id, user.id), eq(authUsers.failedLoginCount, user.failedLoginCount)));
     }
     return Response.json({ error: "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง" }, { status: 401 });
+  }
+
+  if (scope === "admin" && user.role !== "admin") {
+    return Response.json({ error: "บัญชีนี้เป็นบัญชีร้านค้า กรุณาเข้าสู่ระบบผ่านหน้าร้านค้า" }, { status: 403 });
+  }
+  if (scope === "merchant" && user.role === "admin") {
+    return Response.json({ error: "บัญชีนี้เป็นบัญชีแอดมิน กรุณาเข้าสู่ระบบผ่านหน้าแอดมิน" }, { status: 403 });
   }
 
   await getDb().update(authUsers).set({ failedLoginCount: 0, lockedUntil: null, updatedAt: new Date().toISOString() }).where(eq(authUsers.id, user.id));

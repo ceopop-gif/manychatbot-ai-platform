@@ -28,7 +28,8 @@ Never commit `.env` or place provider, LINE, payment, database, or storage crede
 
 ## Authentication
 
-- Login: `/login`
+- Store login: `/login`
+- Platform Admin login: `/admin/login`
 - Create an account: `/register`
 - Platform Admin dashboard: `/admin` (เฉพาะผู้ใช้ role `admin`)
 - Platform Admin pages: `/admin/merchants`, `/admin/access`, `/admin/billing`, `/admin/health`, `/admin/settings`

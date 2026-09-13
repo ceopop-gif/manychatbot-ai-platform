@@ -141,7 +141,7 @@ export default function PlatformAdminClient({ displayName, initialView = "overvi
       toast.error("ออกจากระบบไม่สำเร็จ");
       return;
     }
-    window.location.assign("/login");
+    window.location.assign("/admin/login");
   }
 
   function navigate(next: AdminView) {
