@@ -15,6 +15,7 @@ import { buildSkillInstruction, generateAiReply, routeToAdmin, type ChatTurn, ty
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { decryptSecret } from "@/lib/secret-vault";
 import { compileSkillMarkdown } from "@/lib/skill-markdown";
+import { getStorage } from "@/lib/storage";
 
 type LineEvent = {
   type?: string;
@@ -23,7 +24,7 @@ type LineEvent = {
   webhookEventId?: string;
   replyToken?: string;
   source?: { type?: string; userId?: string; groupId?: string; roomId?: string };
-  message?: { id?: string; type?: string; text?: string };
+  message?: { id?: string; type?: string; text?: string; packageId?: string; stickerId?: string };
 };
 
 type LineWebhook = {
@@ -31,11 +32,12 @@ type LineWebhook = {
   events?: LineEvent[];
 };
 
-type IngestedTextEvent = {
+type IngestedMessageEvent = {
   conversationId: string;
   messageId: string;
   externalEventId: string;
   sourceId: string;
+  messageType: "text" | "image" | "sticker";
 };
 
 export async function POST(
@@ -81,8 +83,8 @@ export async function POST(
   let processed = 0;
   for (const event of events) {
     try {
-      if (event.type !== "message" || event.message?.type !== "text" || !event.message.text?.trim()) continue;
-      const ingested = await ingestTextEvent(account, event);
+      if (event.type !== "message" || !["text", "image", "sticker"].includes(event.message?.type ?? "")) continue;
+      const ingested = await ingestMessageEvent(account, accessToken, event);
       if (!ingested) continue;
       jobs.push(() => processTextEvent(account, accessToken, event, ingested));
       processed += 1;
@@ -104,10 +106,11 @@ export async function POST(
   return Response.json({ ok: true, processed });
 }
 
-async function ingestTextEvent(
+async function ingestMessageEvent(
   account: typeof channelAccounts.$inferSelect,
+  accessToken: string,
   event: LineEvent
-): Promise<IngestedTextEvent | null> {
+): Promise<IngestedMessageEvent | null> {
   const db = getDb();
   const externalEventId = event.webhookEventId?.trim() || event.message?.id?.trim() || crypto.randomUUID();
   const [duplicate] = await db.select({ id: messages.id }).from(messages).where(and(eq(messages.ownerUserId, account.ownerUserId), eq(messages.externalMessageId, externalEventId))).limit(1);
@@ -124,7 +127,8 @@ async function ingestTextEvent(
   if (!sourceId) throw new Error("LINE source unavailable");
   const now = new Date().toISOString();
   const eventAt = lineEventTimestamp(event.timestamp, now);
-  const customerText = event.message?.text?.trim() ?? "";
+  const messageType = event.message?.type === "image" ? "image" : event.message?.type === "sticker" ? "sticker" : "text";
+  const customerText = event.message?.text?.trim() || (messageType === "image" ? "[รูปภาพ]" : messageType === "sticker" ? "[สติกเกอร์]" : "");
 
   let [conversation] = await db
     .select()
@@ -151,6 +155,21 @@ async function ingestTextEvent(
   }
   if (!conversation) throw new Error("conversation unavailable");
 
+  let mediaKey = "";
+  let mediaContentType = "";
+  if (messageType === "image") {
+    const lineMessageId = event.message?.id?.trim();
+    if (!lineMessageId) throw new Error("LINE image message id unavailable");
+    const mediaResponse = await fetchWithTimeout(`https://api-data.line.me/v2/bot/message/${encodeURIComponent(lineMessageId)}/content`, {
+      headers: { authorization: `Bearer ${accessToken}` },
+    }, 10_000, "LINE ใช้เวลาดาวน์โหลดรูปภาพนานเกิน 10 วินาที");
+    if (!mediaResponse.ok) throw new Error(`ดาวน์โหลดรูปภาพจาก LINE ไม่สำเร็จ HTTP ${mediaResponse.status}`);
+    const body = await mediaResponse.arrayBuffer();
+    mediaContentType = mediaResponse.headers.get("content-type")?.split(";")[0] || "image/jpeg";
+    mediaKey = `conversation-media/${account.ownerUserId}/${crypto.randomUUID()}`;
+    await getStorage().put(mediaKey, body, mediaContentType);
+  }
+
   const messageId = crypto.randomUUID();
   const [inserted] = await db.insert(messages).values({
     id: messageId,
@@ -160,6 +179,11 @@ async function ingestTextEvent(
     senderType: "customer",
     senderName: "ลูกค้า LINE",
     content: customerText,
+    messageType,
+    mediaKey,
+    mediaContentType,
+    stickerPackageId: event.message?.packageId?.trim() ?? "",
+    stickerId: event.message?.stickerId?.trim() ?? "",
     externalMessageId: externalEventId,
     deliveryStatus: "received",
     createdAt: eventAt,
@@ -178,15 +202,16 @@ async function ingestTextEvent(
     updatedAt: now,
   }).where(and(eq(conversations.id, conversation.id), lte(conversations.lastMessageAt, eventAt)));
 
-  return { conversationId: conversation.id, messageId, externalEventId, sourceId };
+  return { conversationId: conversation.id, messageId, externalEventId, sourceId, messageType };
 }
 
 async function processTextEvent(
   account: typeof channelAccounts.$inferSelect,
   accessToken: string,
   event: LineEvent,
-  ingested: IngestedTextEvent
+  ingested: IngestedMessageEvent
 ) {
+  if (event.message?.type !== "text") return;
   const db = getDb();
   const customerName = await getLineCustomerName(accessToken, event.source, ingested.sourceId);
   await db.update(messages).set({ senderName: customerName }).where(eq(messages.id, ingested.messageId));

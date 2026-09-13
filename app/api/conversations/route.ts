@@ -1,9 +1,10 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, ne } from "drizzle-orm";
 import { getMerchantUser } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";
 import { adminProfiles, adminSkills, channelAccounts, conversations, messages, workspaces } from "@/db/schema";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { decryptSecret } from "@/lib/secret-vault";
+import { getPublicOrigin } from "@/lib/public-origin";
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "ไม่สามารถโหลดบทสนทนาได้";
@@ -36,8 +37,8 @@ export async function GET(request: Request) {
     if (!conversationId) return Response.json({ conversations: mapped });
     const selected = mapped.find((item) => item.id === conversationId);
     if (!selected) return Response.json({ error: "ไม่พบบทสนทนา" }, { status: 404 });
-    const thread = await db.select().from(messages).where(and(eq(messages.conversationId, conversationId), eq(messages.ownerUserId, user.id))).orderBy(asc(messages.createdAt)).limit(300);
-    return Response.json({ conversation: selected, messages: thread });
+    const thread = await db.select().from(messages).where(and(eq(messages.conversationId, conversationId), eq(messages.ownerUserId, user.id), ne(messages.deliveryStatus, "draft"))).orderBy(asc(messages.createdAt)).limit(300);
+    return Response.json({ conversation: selected, messages: thread.map((message) => ({ ...message, mediaUrl: message.messageType === "image" ? `${getPublicOrigin(request)}/api/conversations/media/${message.id}` : "" })) });
   } catch (error) {
     return Response.json({ error: errorMessage(error) }, { status: 500 });
   }
@@ -47,11 +48,22 @@ export async function POST(request: Request) {
   try {
     const user = await getMerchantUser();
     if (!user) return Response.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
-    const payload = (await request.json()) as { conversationId?: string; content?: string };
+    const payload = (await request.json()) as {
+      conversationId?: string;
+      content?: string;
+      messageType?: "text" | "image" | "sticker";
+      mediaId?: string;
+      stickerPackageId?: string;
+      stickerId?: string;
+    };
     const conversationId = payload.conversationId?.trim() ?? "";
     const content = payload.content?.trim() ?? "";
-    if (!conversationId || !content) return Response.json({ error: "กรุณาพิมพ์ข้อความ" }, { status: 400 });
+    const messageType = payload.messageType === "image" ? "image" : payload.messageType === "sticker" ? "sticker" : "text";
+    if (!conversationId) return Response.json({ error: "ไม่พบบทสนทนา" }, { status: 400 });
+    if (messageType === "text" && !content) return Response.json({ error: "กรุณาพิมพ์ข้อความ" }, { status: 400 });
     if (content.length > 5000) return Response.json({ error: "ข้อความยาวเกิน 5,000 ตัวอักษร" }, { status: 400 });
+    if (messageType === "image" && !payload.mediaId?.trim()) return Response.json({ error: "กรุณาเลือกรูปภาพ" }, { status: 400 });
+    if (messageType === "sticker" && (!/^\d+$/.test(payload.stickerPackageId?.trim() ?? "") || !/^\d+$/.test(payload.stickerId?.trim() ?? ""))) return Response.json({ error: "ไม่พบสติกเกอร์ที่เลือก" }, { status: 400 });
 
     const db = getDb();
     const [conversation] = await db.select().from(conversations).where(and(eq(conversations.id, conversationId), eq(conversations.ownerUserId, user.id))).limit(1);
@@ -59,14 +71,26 @@ export async function POST(request: Request) {
     const [account] = await db.select().from(channelAccounts).where(and(eq(channelAccounts.id, conversation.channelAccountId), eq(channelAccounts.ownerUserId, user.id))).limit(1);
     if (!account) return Response.json({ error: "ไม่พบบัญชีช่องทาง" }, { status: 404 });
 
+    let mediaDraft: typeof messages.$inferSelect | null = null;
+    if (messageType === "image") {
+      const [draft] = await db.select().from(messages).where(and(eq(messages.id, payload.mediaId!.trim()), eq(messages.conversationId, conversationId), eq(messages.ownerUserId, user.id), eq(messages.messageType, "image"), eq(messages.deliveryStatus, "draft"))).limit(1);
+      if (!draft) return Response.json({ error: "ไม่พบรูปภาพที่อัปโหลด" }, { status: 404 });
+      mediaDraft = draft;
+    }
+
     let deliveryStatus = "sent";
     if (account.platform === "line") {
       const accessToken = await decryptSecret(account.accessTokenEncrypted);
       if (!accessToken) return Response.json({ error: "LINE OA ยังไม่มี Channel access token" }, { status: 422 });
+      const lineMessage = messageType === "image"
+        ? { type: "image", originalContentUrl: `${getPublicOrigin(request)}/api/conversations/media/${mediaDraft!.id}`, previewImageUrl: `${getPublicOrigin(request)}/api/conversations/media/${mediaDraft!.id}` }
+        : messageType === "sticker"
+          ? { type: "sticker", packageId: payload.stickerPackageId!.trim(), stickerId: payload.stickerId!.trim() }
+          : { type: "text", text: content };
       const response = await fetchWithTimeout("https://api.line.me/v2/bot/message/push", {
         method: "POST",
         headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
-        body: JSON.stringify({ to: conversation.externalUserId, messages: [{ type: "text", text: content }] }),
+        body: JSON.stringify({ to: conversation.externalUserId, messages: [lineMessage] }),
       }, 10_000, "LINE ใช้เวลาส่งข้อความนานเกิน 10 วินาที");
       if (!response.ok) {
         deliveryStatus = "failed";
@@ -78,19 +102,24 @@ export async function POST(request: Request) {
     }
 
     const now = new Date().toISOString();
-    const [message] = await db.insert(messages).values({
-      id: crypto.randomUUID(),
-      ownerUserId: user.id,
-      conversationId,
-      direction: "outbound",
-      senderType: "admin",
-      senderName: user.displayName,
-      content,
-      deliveryStatus,
-      createdAt: now,
-    }).returning();
+    const message = mediaDraft
+      ? (await db.update(messages).set({ senderName: user.displayName, deliveryStatus, createdAt: now }).where(eq(messages.id, mediaDraft.id)).returning())[0]
+      : (await db.insert(messages).values({
+        id: crypto.randomUUID(),
+        ownerUserId: user.id,
+        conversationId,
+        direction: "outbound",
+        senderType: "admin",
+        senderName: user.displayName,
+        content: messageType === "sticker" ? "[สติกเกอร์]" : content,
+        messageType,
+        stickerPackageId: messageType === "sticker" ? payload.stickerPackageId!.trim() : "",
+        stickerId: messageType === "sticker" ? payload.stickerId!.trim() : "",
+        deliveryStatus,
+        createdAt: now,
+      }).returning())[0];
     await db.update(conversations).set({
-      lastMessagePreview: content,
+      lastMessagePreview: messageType === "text" ? content : messageType === "image" ? "[รูปภาพ]" : "[สติกเกอร์]",
       lastMessageAt: now,
       updatedAt: now,
       unreadCount: 0,
@@ -99,7 +128,7 @@ export async function POST(request: Request) {
       humanTakeover: true,
       humanAgentName: user.displayName,
     }).where(eq(conversations.id, conversationId));
-    return Response.json({ message }, { status: 201 });
+    return Response.json({ message: { ...message, mediaUrl: messageType === "image" ? `${getPublicOrigin(request)}/api/conversations/media/${message.id}` : "" } }, { status: 201 });
   } catch (error) {
     return Response.json({ error: errorMessage(error) }, { status: 500 });
   }

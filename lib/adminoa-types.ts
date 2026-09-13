@@ -155,6 +155,12 @@ export type MessageRecord = {
   senderType: "customer" | "ai" | "admin" | "system";
   senderName: string;
   content: string;
+  messageType: "text" | "image" | "sticker";
+  mediaKey: string;
+  mediaContentType: string;
+  stickerPackageId: string;
+  stickerId: string;
+  mediaUrl?: string;
   deliveryStatus: string;
   adminId: string | null;
   skillId: string | null;

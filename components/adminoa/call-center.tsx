@@ -9,12 +9,16 @@ import {
   Headphones,
   LoaderCircle,
   MessageSquareText,
+  Paperclip,
   Route,
   Search,
   Send,
+  Smile,
   UserRoundCog,
   UsersRound,
+  X,
 } from "lucide-react";
+import Image from "next/image";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,6 +28,14 @@ import type { AdminRecord, ConversationRecord, MessageRecord } from "@/lib/admin
 import { AdminAvatar, ChannelMark, EmptyState, StatusBadge, formatDateTime } from "./shared";
 
 type InboxFilter = "all" | "unread" | "human";
+type PendingImage = { id: string; url: string; name: string };
+type PendingSticker = { packageId: string; stickerId: string };
+
+const STICKER_OPTIONS = ["1988", "1989", "1990", "1991"];
+
+function stickerUrl(stickerId: string) {
+  return `https://stickershop.line-scdn.net/stickershop/v1/sticker/${stickerId}/ANDROID/sticker.png`;
+}
 
 export function CallCenterView({
   workspaceId,
@@ -43,11 +55,16 @@ export function CallCenterView({
   const [loadingThread, setLoadingThread] = useState(false);
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [pendingImage, setPendingImage] = useState<PendingImage | null>(null);
+  const [pendingSticker, setPendingSticker] = useState<PendingSticker | null>(null);
+  const [stickerPickerOpen, setStickerPickerOpen] = useState(false);
   const [acting, setActing] = useState(false);
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<InboxFilter>("all");
   const [mobileThread, setMobileThread] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const effectiveSelectedId = conversations.some((item) => item.id === selectedId)
     ? selectedId
     : conversations[0]?.id ?? "";
@@ -105,18 +122,22 @@ export function CallCenterView({
   }, [lastMessageId]);
 
   async function sendReply() {
-    if (!selected || !reply.trim()) return;
+    if (!selected || (!reply.trim() && !pendingImage && !pendingSticker)) return;
     setSending(true);
     try {
+      const messageType = pendingImage ? "image" : pendingSticker ? "sticker" : "text";
       const response = await fetch("/api/conversations", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ conversationId: selected.id, content: reply }),
+        body: JSON.stringify({ conversationId: selected.id, content: reply, messageType, mediaId: pendingImage?.id, stickerPackageId: pendingSticker?.packageId, stickerId: pendingSticker?.stickerId }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "ส่งข้อความไม่สำเร็จ");
       setMessages((items) => [...items, data.message]);
       setReply("");
+      setPendingImage(null);
+      setPendingSticker(null);
+      setStickerPickerOpen(false);
       await onReload();
       toast.success("พนักงานส่งข้อความกลับ LINE OA แล้ว");
     } catch (error) {
@@ -124,6 +145,34 @@ export function CallCenterView({
     } finally {
       setSending(false);
     }
+  }
+
+  async function uploadImage(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || !selected) return;
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.set("conversationId", selected.id);
+      formData.set("file", file);
+      const response = await fetch("/api/conversations/media", { method: "POST", body: formData });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "อัปโหลดรูปภาพไม่สำเร็จ");
+      setPendingImage({ id: data.mediaId, url: data.mediaUrl, name: file.name });
+      setPendingSticker(null);
+      toast.success("เลือกรูปภาพแล้ว กดส่งเพื่อส่งให้ลูกค้า");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "อัปโหลดรูปภาพไม่สำเร็จ");
+    } finally {
+      setUploadingImage(false);
+    }
+  }
+
+  function chooseSticker(stickerId: string) {
+    setPendingSticker({ packageId: "446", stickerId });
+    setPendingImage(null);
+    setStickerPickerOpen(false);
   }
 
   async function updateConversation(patch: Record<string, unknown>, successMessage?: string) {
@@ -204,7 +253,7 @@ export function CallCenterView({
                     {!outbound && <div className="mt-auto flex size-8 shrink-0 items-center justify-center rounded-full bg-white text-xs font-black text-slate-600 shadow-sm">{selected.customerName.slice(0, 1)}</div>}
                     <div className="min-w-0">
                       {outbound && <div className={`mb-1.5 flex items-center justify-end gap-1.5 text-xs font-bold ${message.senderType === "system" ? "text-amber-700" : message.senderType === "ai" ? "text-indigo-700" : "text-emerald-700"}`}>{message.senderType === "ai" ? <BrainCircuit className="size-3.5" /> : message.senderType === "system" ? <UsersRound className="size-3.5" /> : <UserRoundCog className="size-3.5" />}{message.senderName || (message.senderType === "ai" ? "Admin AI" : "เจ้าหน้าที่")}{message.skillVersion > 0 && <span>· Skill v{message.skillVersion}</span>}{message.confidence > 0 && <span>· {message.confidence}%</span>}</div>}
-                      <div className={`rounded-2xl px-4 py-3 text-sm leading-6 shadow-sm ${outbound ? message.senderType === "system" ? "rounded-br-md bg-amber-100 text-amber-950" : message.senderType === "ai" ? "rounded-br-md bg-indigo-950 text-white" : "rounded-br-md bg-emerald-800 text-white" : "rounded-bl-md bg-white text-slate-800"}`}>{message.content}</div>
+                      <div className={`rounded-2xl px-4 py-3 text-sm leading-6 shadow-sm ${outbound ? message.senderType === "system" ? "rounded-br-md bg-amber-100 text-amber-950" : message.senderType === "ai" ? "rounded-br-md bg-indigo-950 text-white" : "rounded-br-md bg-emerald-800 text-white" : "rounded-bl-md bg-white text-slate-800"}`}>{message.messageType === "image" && message.mediaUrl ? <a href={message.mediaUrl} target="_blank" rel="noreferrer" className="block cursor-pointer"><Image src={message.mediaUrl} alt="รูปภาพจากแชท" width={420} height={320} unoptimized className="max-h-72 w-auto max-w-full rounded-xl object-contain" /></a> : message.messageType === "sticker" && message.stickerId ? <Image src={stickerUrl(message.stickerId)} alt="สติกเกอร์จากแชท" width={180} height={180} unoptimized className="size-36 object-contain" /> : message.content}</div>
                       <p className={`mt-1 text-xs text-slate-400 ${outbound ? "text-right" : ""}`}>{formatDateTime(message.createdAt)}{message.model ? ` · ${message.model}` : ""}{message.latencyMs ? ` · ${(message.latencyMs / 1000).toFixed(1)} วิ` : ""}</p>
                     </div>
                   </div>
@@ -216,8 +265,9 @@ export function CallCenterView({
           <div className="border-t border-slate-200 bg-white p-4">
             <div className="mb-2 flex flex-wrap items-center gap-2"><Badge className="border-0 bg-emerald-50 text-emerald-800"><MessageSquareText /> พนักงานตอบเอง</Badge><span className="text-xs text-slate-400">เมื่อส่งข้อความ ระบบจะพัก AI Router สำหรับบทสนทนานี้</span></div>
             <div className="mx-auto max-w-3xl rounded-2xl border border-slate-200 bg-slate-50 p-3 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-100">
+              {(pendingImage || pendingSticker) && <div className="mb-3 flex items-center gap-3 rounded-xl border border-emerald-200 bg-white p-2">{pendingImage ? <><Image src={pendingImage.url} alt="รูปภาพที่เลือก" width={64} height={64} unoptimized className="size-16 rounded-lg object-cover" /><span className="min-w-0 flex-1 truncate text-xs font-bold text-slate-600">{pendingImage.name}</span></> : pendingSticker ? <><Image src={stickerUrl(pendingSticker.stickerId)} alt="สติกเกอร์ที่เลือก" width={64} height={64} unoptimized className="size-16 object-contain" /><span className="flex-1 text-xs font-bold text-slate-600">สติกเกอร์พร้อมส่ง</span></> : null}<button type="button" onClick={() => { setPendingImage(null); setPendingSticker(null); }} className="flex size-8 cursor-pointer items-center justify-center rounded-lg text-slate-400 hover:bg-rose-50 hover:text-rose-600" aria-label="ลบไฟล์ที่เลือก"><X className="size-4" /></button></div>}
               <Textarea value={reply} onChange={(event) => setReply(event.target.value)} placeholder="พิมพ์คำตอบถึงลูกค้าจากพนักงานจริง…" className="min-h-20 resize-none border-0 bg-transparent p-1 shadow-none focus-visible:ring-0" />
-              <div className="mt-2 flex justify-end"><Button disabled={sending || !reply.trim()} onClick={sendReply} className="rounded-xl bg-emerald-700 hover:bg-emerald-800">{sending ? <LoaderCircle className="animate-spin" /> : <Send />} ส่งกลับ LINE</Button></div>
+              <div className="mt-2 flex items-center justify-between gap-2"><div className="relative flex items-center gap-1"><input ref={fileInputRef} type="file" accept="image/jpeg,image/png" onChange={(event) => void uploadImage(event)} className="hidden" /><button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploadingImage || sending} className="flex size-9 cursor-pointer items-center justify-center rounded-lg text-slate-500 hover:bg-emerald-100 hover:text-emerald-700 disabled:cursor-not-allowed" aria-label="ส่งรูปภาพ" title="ส่งรูปภาพ (JPG/PNG ไม่เกิน 1 MB)">{uploadingImage ? <LoaderCircle className="size-4 animate-spin" /> : <Paperclip className="size-4" />}</button><button type="button" onClick={() => setStickerPickerOpen((open) => !open)} disabled={sending} className="flex size-9 cursor-pointer items-center justify-center rounded-lg text-slate-500 hover:bg-emerald-100 hover:text-emerald-700 disabled:cursor-not-allowed" aria-label="ส่งสติกเกอร์" title="ส่งสติกเกอร์"><Smile className="size-4" /></button>{stickerPickerOpen && <div className="absolute bottom-11 left-0 z-20 grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">{STICKER_OPTIONS.map((stickerId) => <button type="button" key={stickerId} onClick={() => chooseSticker(stickerId)} className="cursor-pointer rounded-xl p-1 hover:bg-emerald-50"><Image src={stickerUrl(stickerId)} alt={`สติกเกอร์ ${stickerId}`} width={72} height={72} unoptimized className="size-16 object-contain" /></button>)}</div>}</div><Button disabled={sending || uploadingImage || (!reply.trim() && !pendingImage && !pendingSticker)} onClick={sendReply} className="cursor-pointer rounded-xl bg-emerald-700 hover:bg-emerald-800">{sending ? <LoaderCircle className="animate-spin" /> : <Send />} ส่งกลับ LINE</Button></div>
             </div>
           </div>
         </>}
