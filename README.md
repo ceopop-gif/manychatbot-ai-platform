@@ -1,127 +1,68 @@
-# vinext-starter
+# ChatMarathon
 
-A clean full-stack starter running on [vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and Drizzle support.
+ChatMarathon is a Node.js application for managing multiple LINE OA accounts, AI admins, skills, conversations, and ChatPOS payments.
 
-## Prerequisites
+## Runtime
+
+This project targets EasyPanel only:
 
 - Node.js `>=22.13.0`
-- Linux with `flock`, `curl`, and GNU `timeout`
+- PostgreSQL
+- S3-compatible object storage such as MinIO or AWS S3
+- Vinext/Vite for the web application
 
-## Sites Lifecycle
+## Environment
 
-The Sites lifecycle CLI runs the locked dependency install before returning this checkout. Edit the source under `app/`, then checkpoint when a coherent milestone is ready to inspect or share. The remote Sites builder runs `npm run build` against the pushed commit. Do not repeat install or build as a normal pre-checkpoint step.
+Copy `.env.example` to `.env` and set the service credentials:
 
-This starter does not use `wrangler.jsonc`.
+- `DATABASE_URL`: PostgreSQL connection string
+- `DATABASE_POOL_MAX`: PostgreSQL pool size
+- `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`: object storage settings
+- `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`: object storage credentials
+- `S3_FORCE_PATH_STYLE`: use `true` for MinIO and most local S3-compatible services
+- `ADMINOA_ENCRYPTION_KEY`: Base64URL-encoded 32-byte key used to encrypt provider and channel secrets
 
-`install:ci` is intentionally a single, non-retrying `npm ci`. It refuses a concurrent install for the same project, consumes a matching image-seeded npm cache with `--prefer-offline` while retaining registry fallback for a missing cache object, otherwise downloads and verifies the complete vinext tarball recorded in `package-lock.json`, limits npm to one socket, and terminates a stalled install. `build` applies a short timeout. These helpers target Linux and use GNU `timeout`; they are not native macOS scripts.
+Never commit `.env` or place provider, LINE, payment, database, or storage credentials in source files.
 
-Scripts that need writable project-scoped home, npm, XDG, and temporary paths use `scripts/sites-env.sh`. The `dev` and `start` scripts honor the caller's runtime environment and keep Wrangler logs inside the checkout. The generated `.sites-runtime/` directory is disposable and ignored by Git.
+## Local commands
 
-## Included Shape
-
-- edit site code under `app/`
-- `app/chatgpt-auth.ts` provides optional dispatch-owned ChatGPT sign-in helpers
-- `.openai/hosting.json` declares optional Sites D1 and R2 bindings
-- `vite.config.ts` simulates declared bindings for local development
-- `db/index.ts` reads the D1 binding from the Cloudflare Worker environment
-- `db/schema.ts` starts intentionally empty
-- `examples/d1/` contains an optional D1 example surface
-- `drizzle.config.ts` supports local migration generation when needed
-
-## ChatMarathon Runtime
-
-ChatMarathon keeps workspace records, Admin profiles, versioned Skills, channel
-accounts, conversations, messages, and AI Provider settings in D1.
-
-Production requires `ADMINOA_ENCRYPTION_KEY`, a Base64URL-encoded 32-byte
-secret. It is used only server-side to encrypt LINE credentials and AI API
-tokens with AES-GCM. Never place Provider or LINE tokens in source files.
-
-The LINE webhook route is `/api/webhooks/line/:webhookKey`. A valid LINE
-signature is required before an event is processed. The response workflow is:
-
-1. save the inbound message in the shared LINE OA inbox;
-2. compare the question with every active Admin and Skill in the workspace;
-3. use the active AI Provider to select the best Admin and Skill with a recorded confidence and reason;
-4. have the selected Admin answer only from that Skill and show the Admin name in LINE and the dashboard; and
-5. disable automation and queue the conversation for a human when no Skill reaches its confidence threshold.
-
-## Workspace Auth Headers
-
-OpenAI workspace sites can read the current user's email from `oai-authenticated-user-email`.
-
-SIWC-authenticated workspace sites may also receive `oai-authenticated-user-full-name` when the user's SIWC profile has a non-empty `name` claim. The full-name value is percent-encoded UTF-8 and is accompanied by `oai-authenticated-user-full-name-encoding: percent-encoded-utf-8`.
-
-Treat the full name as optional and fall back to email when it is absent:
-
-```tsx
-import { headers } from "next/headers";
-
-export default async function Home() {
-  const requestHeaders = await headers();
-  const email = requestHeaders.get("oai-authenticated-user-email");
-  const encodedFullName = requestHeaders.get("oai-authenticated-user-full-name");
-  const fullName =
-    encodedFullName &&
-    requestHeaders.get("oai-authenticated-user-full-name-encoding") ===
-      "percent-encoded-utf-8"
-      ? decodeURIComponent(encodedFullName)
-      : null;
-
-  const displayName = fullName ?? email;
-  // ...
-}
+```bash
+npm install
+npm run db:migrate
+npm run dev
 ```
 
-## Optional Dispatch-Owned ChatGPT Sign-In
+The development server listens on `http://localhost:5173` by default. Set `PORT` in `.env` when another service is using that port.
 
-Import the ready-to-use helpers from `app/chatgpt-auth.ts` when the site needs optional or required ChatGPT sign-in:
+## Production commands
 
-- Use `getChatGPTUser()` for optional signed-in UI.
-- Use `requireChatGPTUser(returnTo)` for server-rendered pages that should send anonymous visitors through Sign in with ChatGPT.
-- In a Server Component, start sign-in with `<a href={chatGPTSignInPath(returnTo)} target="_top">`. The auth helper module is server-only; do not import it into a Client Component.
-- Do not use `fetch`, XHR, a client-side router, or a framework link that can prefetch the sign-in route. SIWC must start as a top-level navigation.
-- Never request the AuthAPI authorization endpoint directly. The dispatch-owned `/signin-with-chatgpt` route must start the SIWC flow.
-- Use `chatGPTSignOutPath(returnTo)` for browser sign-out links or actions.
-- Pass a same-origin relative `returnTo` path for the destination after sign-in or sign-out. The helper validates and safely encodes it.
-- Mark protected pages with `export const dynamic = "force-dynamic"` because they depend on per-request identity headers.
+```bash
+npm install
+npm run db:migrate
+npm run build
+npm start
+```
 
-Dispatch owns `/signin-with-chatgpt`, `/signout-with-chatgpt`, `/callback`, the OAuth cookies, and identity header injection. Do not implement app routes for those reserved paths. Routes that do not import and call the helper remain anonymous-compatible.
+The production start command listens on `0.0.0.0:3000` by default. EasyPanel should provide `DATABASE_URL`, the S3 settings, `ADMINOA_ENCRYPTION_KEY`, and any application authentication configuration as environment variables.
 
-SIWC establishes identity only; it does not prove workspace membership. Use the Sites hosting platform's access policy controls for workspace-wide restrictions, or enforce explicit server-side membership or allowlist checks.
+## Database
 
-Use SIWC for account pages, user-specific dashboards, saved records, and write actions tied to the current ChatGPT user. Leave public content anonymous.
+The PostgreSQL schema is defined in `db/schema.pg.ts` and migrations are generated in `drizzle-pg/`.
 
-## Diagnostic Commands
+```bash
+npm run db:generate
+npm run db:migrate
+```
 
-- `npm run install:ci`: perform the one bounded lockfile install
-- `npm run dev`: start the Vite/Vinext development server
-- `npm run build`: build the deployable Sites artifact
-- `npm run start`: start the built Vinext application
-- `npm test`: build and verify the rendered development-preview metadata
-- `npm run db:generate`: generate Drizzle migrations after schema changes
+Migrations are additive and should be reviewed before applying them to a database containing production data.
 
-## EasyPanel Production Target
+## Features
 
-Codex Work keeps using the default Vinext/Cloudflare commands above. EasyPanel
-uses the separate Node target:
+- Multiple LINE OA accounts per workspace
+- AI provider configuration for OpenAI, Anthropic, Gemini, and compatible APIs
+- Versioned AI admins and skills with document knowledge
+- Conversation routing, human takeover, and webhook safety checks
+- ChatPOS payment links and webhook status updates
+- S3-compatible document storage
 
-- `npm run build:production`: build the Node application with PostgreSQL and S3 adapters
-- `npm run start:production`: start the application on `0.0.0.0:3000`
-- `npm run db:generate:postgres`: generate PostgreSQL migrations in `drizzle-pg/`
-- `npm run db:migrate:postgres`: apply PostgreSQL migrations using `DATABASE_URL`
-
-Set the variables in `.env.example` in the EasyPanel service. The production
-target expects PostgreSQL and an S3-compatible bucket such as MinIO. The
-Codex/OpenAI Workspace identity headers are only supplied by the Sites runtime;
-configure an application authentication provider before exposing the EasyPanel
-service publicly.
-
-Use build commands for targeted diagnosis after a remote failure, not as part of the normal checkpoint path.
-
-The timeout defaults can be overridden for a controlled canary with `SITES_INSTALL_TIMEOUT`, `SITES_INSTALL_KILL_AFTER`, `SITES_BUILD_TIMEOUT`, and `SITES_BUILD_KILL_AFTER`. A timeout fails the command; the helpers never retry an unchanged install or build.
-
-## Learn More
-
-- [vinext Documentation](https://github.com/cloudflare/vinext)
-- [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
+The LINE webhook route is `/api/webhooks/line/:webhookKey`.

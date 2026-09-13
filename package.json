@@ -6,17 +6,13 @@
     "node": ">=22.13.0"
   },
   "scripts": {
-    "install:ci": "bash scripts/install-ci.sh",
     "dev": "node --env-file-if-exists=.env node_modules/vite/bin/vite.js",
-    "build": "bash scripts/build-verified.sh",
+    "build": "node --env-file-if-exists=.env node_modules/vinext/dist/cli.js build",
     "start": "node --env-file-if-exists=.env node_modules/vinext/dist/cli.js start",
-    "build:production": "cross-env RUNTIME_TARGET=node node --env-file-if-exists=.env node_modules/vinext/dist/cli.js build",
-    "start:production": "cross-env RUNTIME_TARGET=node HOST=0.0.0.0 PORT=3000 node --env-file-if-exists=.env node_modules/vinext/dist/cli.js start",
     "test": "npm run build && node --test tests/*.test.mjs",
-    "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next",
-    "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate",
-    "db:generate:postgres": "node --env-file-if-exists=.env node_modules/drizzle-kit/bin.cjs generate --config drizzle.pg.config.ts",
-    "db:migrate:postgres": "node --env-file-if-exists=.env node_modules/drizzle-kit/bin.cjs migrate --config drizzle.pg.config.ts"
+    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
+    "db:generate": "node --env-file-if-exists=.env node_modules/drizzle-kit/bin.cjs generate --config drizzle.pg.config.ts",
+    "db:migrate": "node --env-file-if-exists=.env node_modules/drizzle-kit/bin.cjs migrate --config drizzle.pg.config.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1131.0",
@@ -48,14 +44,12 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "1.37.1",
     "@tailwindcss/postcss": "4.2.1",
     "@types/node": "22.19.19",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.2",
     "@vitejs/plugin-rsc": "0.5.26",
-    "cross-env": "^10.1.0",
     "drizzle-kit": "0.31.10",
     "eslint": "9.39.4",
     "eslint-config-next": "16.2.6",
@@ -64,8 +58,7 @@
     "tw-animate-css": "^1.4.0",
     "typescript": "5.9.3",
     "vinext": "0.0.50",
-    "vite": "8.0.13",
-    "wrangler": "4.92.0"
+    "vite": "8.0.13"
   },
   "type": "module"
 }

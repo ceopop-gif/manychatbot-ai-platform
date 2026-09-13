@@ -1,14 +1,10 @@
-import { env } from "cloudflare:workers";
-
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder();
 
 function getKeyMaterial() {
-  const value = (env as unknown as Record<string, unknown>).ADMINOA_ENCRYPTION_KEY;
-  if (typeof value !== "string" || !value.trim()) {
-    throw new Error("ยังไม่ได้ตั้งค่ากุญแจเข้ารหัส ADMINOA_ENCRYPTION_KEY");
-  }
-  const bytes = fromBase64Url(value.trim());
+  const value = process.env.ADMINOA_ENCRYPTION_KEY?.trim();
+  if (!value) throw new Error("ยังไม่ได้ตั้งค่ากุญแจเข้ารหัส ADMINOA_ENCRYPTION_KEY");
+  const bytes = fromBase64Url(value);
   if (bytes.byteLength !== 32) {
     throw new Error("ADMINOA_ENCRYPTION_KEY ต้องเป็นกุญแจแบบ Base64URL ขนาด 32 ไบต์");
   }

@@ -1,4 +1,4 @@
-import { decryptSecret } from "./secret-vault";
+import { decryptSecret } from "@/lib/secret-vault";
 import { fetchWithTimeout } from "./fetch-with-timeout";
 import { compileSkillMarkdown } from "./skill-markdown";
 
