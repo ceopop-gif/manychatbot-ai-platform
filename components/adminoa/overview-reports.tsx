@@ -14,6 +14,8 @@ import {
   Sparkles,
   UserRoundCog,
 } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type {
@@ -61,6 +63,22 @@ export function OverviewView({
   const progress = readySteps * 25;
   const nextStep = steps.find((step) => !step.done);
   const summary = report?.summary;
+  const nextStepLabel = nextStep?.label;
+  const nextStepDetail = nextStep?.detail;
+  const nextStepView = nextStep?.view;
+  const onNavigateRef = useRef(onNavigate);
+
+  useEffect(() => {
+    onNavigateRef.current = onNavigate;
+  }, [onNavigate]);
+
+  useEffect(() => {
+    if (!nextStepLabel || !nextStepDetail || !nextStepView) return;
+    toast.warning("ระบบยังไม่พร้อมรับแชตจริง 100%", {
+      description: `ขั้นตอนถัดไป: ${nextStepLabel} — ${nextStepDetail}`,
+      action: { label: "ตั้งค่าตอนนี้", onClick: () => onNavigateRef.current(nextStepView) },
+    });
+  }, [nextStepDetail, nextStepLabel, nextStepView]);
 
   return (
     <div className="mx-auto w-full max-w-7xl">
@@ -90,19 +108,6 @@ export function OverviewView({
           </div>
         </div>
       </section>
-
-      {nextStep ? (
-        <section role="alert" className="mt-4 flex flex-col gap-3 rounded-[20px] border border-amber-200 bg-amber-50 p-4 text-amber-950 sm:flex-row sm:items-center">
-          <CircleAlert className="size-5 shrink-0 text-amber-600" />
-          <div className="flex-1">
-            <p className="text-sm font-black">ระบบยังไม่พร้อมรับแชตจริง 100%</p>
-            <p className="mt-1 text-xs leading-5 text-amber-800">ขั้นตอนถัดไป: {nextStep.label} — {nextStep.detail}</p>
-          </div>
-          <Button onClick={() => onNavigate(nextStep.view)} className="h-10 rounded-xl bg-amber-950 text-amber-50 hover:bg-amber-800">
-            ตั้งค่าตอนนี้ <ArrowRight />
-          </Button>
-        </section>
-      ) : null}
 
       <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         {[

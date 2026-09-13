@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
   title: "ChatMarathon | หลาย LINE OA + AI + ChatPOS",
@@ -8,5 +9,5 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="th"><body className="antialiased">{children}</body></html>;
+  return <html lang="th"><body className="antialiased"><Toaster richColors position="top-right" />{children}</body></html>;
 }

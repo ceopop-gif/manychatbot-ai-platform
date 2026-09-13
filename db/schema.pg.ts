@@ -10,6 +10,8 @@ export const authUsers = pgTable(
     email: text("email").notNull().default(""),
     passwordHash: text("password_hash").notNull(),
     role: text("role").notNull().default("merchant"),
+    adminRole: text("admin_role").notNull().default("owner"),
+    permissions: text("permissions").notNull().default(""),
     failedLoginCount: integer("failed_login_count").notNull().default(0),
     lockedUntil: text("locked_until"),
     status: text("status").notNull().default("active"),
@@ -331,5 +333,27 @@ export const messages = pgTable(
     uniqueIndex("idx_messages_owner_external_event")
       .on(table.ownerUserId, table.externalMessageId)
       .where(sql`${table.externalMessageId} <> ''`),
+  ]
+);
+
+export const smsOtpChallenges = pgTable(
+  "sms_otp_challenges",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id").notNull().references(() => authUsers.id, { onDelete: "cascade" }),
+    phone: text("phone").notNull(),
+    otpId: text("otp_id").notNull(),
+    referenceCode: text("reference_code").notNull().default(""),
+    status: text("status").notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    requestedAt: text("requested_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    expiresAt: text("expires_at").notNull(),
+    verifiedAt: text("verified_at"),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("idx_sms_otp_challenges_user_status").on(table.userId, table.status),
+    index("idx_sms_otp_challenges_expires_at").on(table.expiresAt),
   ]
 );

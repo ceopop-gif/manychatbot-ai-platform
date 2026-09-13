@@ -3,6 +3,8 @@ import {
   getAppUser,
   loginPath,
   registerPath,
+  hasPlatformPermission,
+  type PlatformPermission,
   type AuthUser,
 } from "@/lib/auth";
 
@@ -21,6 +23,12 @@ export async function requireChatGPTUser(returnTo: string): Promise<ChatGPTUser>
 export async function requireSystemAdmin(returnTo = "/admin"): Promise<ChatGPTUser> {
   const user = await requireChatGPTUser(returnTo);
   if (user.role !== "admin") redirect("/store");
+  return user;
+}
+
+export async function requirePlatformPermission(permission: PlatformPermission, returnTo = "/admin"): Promise<ChatGPTUser> {
+  const user = await requireSystemAdmin(returnTo);
+  if (!hasPlatformPermission(user, permission)) redirect("/admin");
   return user;
 }
 

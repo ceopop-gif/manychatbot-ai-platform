@@ -26,7 +26,6 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Toaster } from "@/components/ui/sonner";
 import { AdminsView, SkillsView } from "@/components/adminoa/admin-skills";
 import { CallCenterView } from "@/components/adminoa/call-center";
 import { ChannelsView, ProvidersView } from "@/components/adminoa/connections";
@@ -66,7 +65,6 @@ export default function DashboardClient({ displayName = "บัญชีร้�
   const [mobileNav, setMobileNav] = useState(false);
   const [loading, setLoading] = useState(true);
   const [workspaceLoading, setWorkspaceLoading] = useState(false);
-  const [loadError, setLoadError] = useState("");
   const [workspaces, setWorkspaces] = useState<WorkspaceRecord[]>([]);
   const [bots, setBots] = useState<ChatbotRecord[]>([]);
   const [accounts, setAccounts] = useState<ChannelAccountRecord[]>([]);
@@ -153,10 +151,9 @@ export default function DashboardClient({ displayName = "บัญชีร้�
       setConversations(conversationData.conversations ?? []);
       setReport(reportData as ReportRecord);
       setPaymentData(nextPaymentData as PaymentData);
-      setLoadError("");
     } catch (error) {
       if (requestId !== workspaceRequestRef.current) return;
-      setLoadError(error instanceof Error ? error.message : "โหลดข้อมูลหลังบ้านไม่สำเร็จ");
+      toast.error(error instanceof Error ? error.message : "โหลดข้อมูลหลังบ้านไม่สำเร็จ", { action: { label: "โหลดใหม่", onClick: () => window.location.reload() } });
     } finally {
       if (requestId === workspaceRequestRef.current) setWorkspaceLoading(false);
     }
@@ -186,7 +183,7 @@ export default function DashboardClient({ displayName = "บัญชีร้�
     let active = true;
     const timer = window.setTimeout(() => {
       void loadGlobal()
-        .catch((error) => active && setLoadError(error instanceof Error ? error.message : "โหลดระบบไม่สำเร็จ"))
+        .catch((error) => active && toast.error(error instanceof Error ? error.message : "โหลดระบบไม่สำเร็จ", { action: { label: "โหลดใหม่", onClick: () => window.location.reload() } }))
         .finally(() => active && setLoading(false));
     }, 0);
     return () => {
@@ -269,7 +266,6 @@ export default function DashboardClient({ displayName = "บัญชีร้�
 
   return (
     <main className="min-h-screen bg-[#f0f7f3] text-slate-950">
-      <Toaster richColors position="top-right" />
       <div className="flex min-h-screen">
         <aside className={`fixed inset-y-0 left-0 z-50 flex w-[270px] flex-col border-r border-white/10 bg-[#0b2114] p-4 text-white transition-transform lg:static lg:translate-x-0 ${mobileNav ? "translate-x-0" : "-translate-x-full"}`}>
           <div className="flex items-center gap-3 px-2 py-2">
@@ -312,7 +308,6 @@ export default function DashboardClient({ displayName = "บัญชีร้�
             </div>
           </header>
 
-          {loadError && <div className="flex items-center gap-3 border-b border-rose-200 bg-rose-50 px-5 py-3 text-sm font-semibold text-rose-800"><span className="min-w-0 flex-1">{loadError}</span><Button type="button" variant="outline" size="sm" disabled={workspaceLoading} onClick={() => void reloadEverything()} className="shrink-0 border-rose-300 bg-white text-rose-800 hover:bg-rose-100">ลองอีกครั้ง</Button></div>}
           <div className={`relative min-h-0 flex-1 ${view === "inbox" ? "flex p-3 md:p-5" : "overflow-y-auto p-4 md:p-6"}`}>
             {loading ? <div className="flex min-h-[70vh] w-full items-center justify-center"><LoaderCircle className="size-7 animate-spin text-emerald-700" /><span className="ml-3 text-sm font-semibold text-slate-500">กำลังโหลด ChatMarathon</span></div> : content}
             {workspaceLoading && !loading && <div className="pointer-events-none absolute right-4 top-4 flex items-center gap-2 rounded-full border border-slate-200 bg-white/90 px-3 py-1.5 text-xs font-semibold text-slate-500 shadow-sm backdrop-blur"><LoaderCircle className="size-3.5 animate-spin" /> อัปเดตข้อมูล</div>}

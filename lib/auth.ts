@@ -9,12 +9,29 @@ const SESSION_TTL_MS = 1000 * 60 * 60 * 24 * 7;
 const PASSWORD_KEY_LENGTH = 32;
 const PASSWORD_SCRYPT = { N: 32_768, r: 8, p: 1, maxmem: 64 * 1024 * 1024 } as const;
 const USERNAME_PATTERN = /^[a-z0-9][a-z0-9._-]{2,31}$/;
-const PASSWORD_MIN_LENGTH = 12;
+const PASSWORD_MIN_LENGTH = 8;
 const PASSWORD_MAX_LENGTH = 128;
 const DUMMY_PASSWORD = "chatmarathon-invalid-password";
 const DUMMY_HASH_PROMISE = hashPassword(DUMMY_PASSWORD);
 
 export type UserRole = "admin" | "merchant";
+export type AdminRole = "owner" | "manager" | "support";
+export type PlatformPermission = "overview.view" | "merchants.view" | "users.manage" | "billing.view" | "health.view" | "settings.manage";
+
+export const PLATFORM_PERMISSIONS: Array<{ id: PlatformPermission; label: string }> = [
+  { id: "overview.view", label: "ดูภาพรวมแพลตฟอร์ม" },
+  { id: "merchants.view", label: "ดูแลร้านค้า" },
+  { id: "users.manage", label: "จัดการผู้ใช้แอดมิน" },
+  { id: "billing.view", label: "ดูแพ็กเกจและรายได้" },
+  { id: "health.view", label: "ดูสุขภาพระบบ" },
+  { id: "settings.manage", label: "จัดการตั้งค่าแพลตฟอร์ม" },
+];
+
+const DEFAULT_ADMIN_PERMISSIONS: Record<AdminRole, PlatformPermission[]> = {
+  owner: PLATFORM_PERMISSIONS.map((permission) => permission.id),
+  manager: ["overview.view", "merchants.view", "billing.view", "health.view"],
+  support: ["overview.view", "merchants.view", "health.view"],
+};
 
 export type AuthUser = {
   id: string;
@@ -22,6 +39,8 @@ export type AuthUser = {
   displayName: string;
   email: string;
   role: UserRole;
+  adminRole: AdminRole;
+  permissions: PlatformPermission[];
   fullName: string | null;
 };
 
@@ -42,6 +61,27 @@ export function validatePassword(value: string): string | null {
     return "รหัสผ่านต้องมีตัวพิมพ์เล็ก ตัวพิมพ์ใหญ่ และตัวเลขอย่างน้อยอย่างละ 1 ตัว";
   }
   return null;
+}
+
+export function normalizeAdminRole(value: string | null | undefined): AdminRole {
+  return value === "manager" || value === "support" ? value : "owner";
+}
+
+export function normalizeAdminPermissions(value: unknown, role: AdminRole = "owner"): PlatformPermission[] {
+  if (!Array.isArray(value)) return [...DEFAULT_ADMIN_PERMISSIONS[role]];
+  const allowed = new Set<PlatformPermission>(PLATFORM_PERMISSIONS.map((permission) => permission.id));
+  const permissions = value.filter((permission): permission is PlatformPermission => typeof permission === "string" && allowed.has(permission as PlatformPermission));
+  if (role === "owner") return [...DEFAULT_ADMIN_PERMISSIONS.owner];
+  const normalized = [...new Set(permissions)];
+  return normalized.includes("overview.view") ? normalized : ["overview.view", ...normalized];
+}
+
+export function getDefaultAdminPermissions(role: AdminRole): PlatformPermission[] {
+  return [...DEFAULT_ADMIN_PERMISSIONS[role]];
+}
+
+export function hasPlatformPermission(user: Pick<AuthUser, "role" | "adminRole" | "permissions">, permission: PlatformPermission): boolean {
+  return user.role === "admin" && (user.adminRole === "owner" || user.permissions.includes(permission));
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -115,6 +155,8 @@ export async function getAppUser(): Promise<AuthUser | null> {
       email: authUsers.email,
       username: authUsers.username,
       role: authUsers.role,
+      adminRole: authUsers.adminRole,
+      permissions: authUsers.permissions,
       status: authUsers.status,
       expiresAt: authSessions.expiresAt,
       lastSeenAt: authSessions.lastSeenAt,
@@ -139,6 +181,8 @@ export async function getAppUser(): Promise<AuthUser | null> {
     displayName: record.displayName,
     email: record.email,
     role: record.role === "admin" ? "admin" : "merchant",
+    adminRole: normalizeAdminRole(record.adminRole),
+    permissions: normalizeAdminPermissions(parsePermissions(record.permissions), normalizeAdminRole(record.adminRole)),
     fullName: record.displayName,
   };
 }
@@ -165,7 +209,10 @@ export function isSameOriginRequest(request: Request): boolean {
   const origin = request.headers.get("origin");
   if (!origin) return true;
   try {
-    return new URL(origin).origin === new URL(request.url).origin;
+    const originUrl = new URL(origin);
+    const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+    const requestHost = forwardedHost || request.headers.get("host") || new URL(request.url).host;
+    return originUrl.host === requestHost;
   } catch {
     return false;
   }
@@ -204,6 +251,15 @@ function isUnsafeCrossOriginRequest(requestHeaders: Headers): boolean {
     return !host || new URL(origin).host !== host;
   } catch {
     return true;
+  }
+}
+
+function parsePermissions(value: string): unknown {
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
   }
 }
 

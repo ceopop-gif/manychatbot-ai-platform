@@ -1,0 +1,39 @@
+0 verbose cli C:\Program Files\nodejs\node.exe C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js
+1 info using npm@11.13.0
+2 info using node@v26.2.0
+3 silly config load:file:C:\Program Files\nodejs\node_modules\npm\npmrc
+4 silly config load:file:D:\Project\manychatbot-ai-platform\.npmrc
+5 silly config load:file:C:\Users\Haiphee\.npmrc
+6 silly config load:file:C:\Users\Haiphee\AppData\Roaming\npm\etc\npmrc
+7 verbose title npm ci
+8 verbose argv "ci" "--ignore-scripts" "--offline"
+9 verbose logfile logs-max:10 dir:D:\Project\manychatbot-ai-platform\.sites-runtime\npm-cache\_logs\2026-09-13T05_22_48_757Z-
+10 verbose logfile D:\Project\manychatbot-ai-platform\.sites-runtime\npm-cache\_logs\2026-09-13T05_22_48_757Z-debug-0.log
+11 silly logfile start cleaning logs, removing 1 files
+12 silly packumentCache heap:4395630592 maxSize:1098907648 maxEntrySize:549453824
+13 silly logfile done cleaning log files
+14 silly packumentCache heap:4395630592 maxSize:1098907648 maxEntrySize:549453824
+15 silly idealTree buildDeps
+16 verbose stack Error: EPERM: operation not permitted, unlink 'D:\Project\manychatbot-ai-platform\node_modules\lightningcss-win32-x64-msvc\lightningcss.win32-x64-msvc.node'
+17 error code EPERM
+18 error syscall unlink
+19 error path D:\Project\manychatbot-ai-platform\node_modules\lightningcss-win32-x64-msvc\lightningcss.win32-x64-msvc.node
+20 error errno -4048
+21 error [Error: EPERM: operation not permitted, unlink 'D:\Project\manychatbot-ai-platform\node_modules\lightningcss-win32-x64-msvc\lightningcss.win32-x64-msvc.node'] {
+21 error   errno: -4048,
+21 error   code: 'EPERM',
+21 error   syscall: 'unlink',
+21 error   path: 'D:\\Project\\manychatbot-ai-platform\\node_modules\\lightningcss-win32-x64-msvc\\lightningcss.win32-x64-msvc.node'
+21 error }
+22 error
+22 error The operation was rejected by your operating system.
+22 error It's possible that the file was already in use (by a text editor or antivirus), or that you lack permissions to access it.
+22 error
+22 error If you believe this might be a permissions issue, please double-check the permissions of the file and its containing directories, or try running the command again as root/Administrator.
+23 verbose cwd D:\Project\manychatbot-ai-platform
+24 verbose os Windows_NT 10.0.26200
+25 verbose node v26.2.0
+26 verbose npm  v11.13.0
+27 verbose exit -4048
+28 verbose code -4048
+29 error A complete log of this run can be found in: D:\Project\manychatbot-ai-platform\.sites-runtime\npm-cache\_logs\2026-09-13T05_22_48_757Z-debug-0.log

@@ -2,6 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import { getChatGPTUser } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";
 import { aiProviders, authUsers, channelAccounts, chatbots, conversations, paymentOrders, workspaces } from "@/db/schema";
+import { hasPlatformPermission } from "@/lib/auth";
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "ไม่สามารถโหลดข้อมูลแพลตฟอร์มได้";
@@ -11,7 +12,7 @@ export async function GET() {
   try {
     const user = await getChatGPTUser();
     if (!user) return Response.json({ error: "กรุณาเข้าสู่ระบบ" }, { status: 401 });
-    if (user.role !== "admin") return Response.json({ error: "ไม่มีสิทธิ์เข้าถึงข้อมูลแพลตฟอร์ม" }, { status: 403 });
+    if (!hasPlatformPermission(user, "overview.view")) return Response.json({ error: "ไม่มีสิทธิ์เข้าถึงข้อมูลแพลตฟอร์ม" }, { status: 403 });
 
     const db = getDb();
     const [users, allWorkspaces, allBots, allChannels, allProviders, allConversations, allOrders] = await Promise.all([

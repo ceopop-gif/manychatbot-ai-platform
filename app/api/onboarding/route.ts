@@ -1,8 +1,9 @@
 import { and, eq } from "drizzle-orm";
 import { getMerchantUser } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";
-import { aiProviders, channelAccounts, chatbots, paymentProfiles, workspaces } from "@/db/schema";
+import { aiProviders, channelAccounts, chatbots, paymentProfiles, smsOtpChallenges, workspaces } from "@/db/schema";
 import { encryptSecret } from "@/lib/secret-vault";
+import { normalizeThaiMobile } from "@/lib/sms-up";
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "สมัครใช้งานไม่สำเร็จ";
@@ -20,9 +21,25 @@ export async function POST(request: Request) {
       plan?: string;
       line?: { accountName?: string; channelId?: string; channelSecret?: string; accessToken?: string };
       ai?: { provider?: "openai" | "anthropic" | "gemini" | "custom"; name?: string; model?: string; baseUrl?: string; apiKey?: string };
+      otpChallengeId?: string;
     };
     const workspaceName = payload.workspaceName?.trim() ?? "";
     if (!workspaceName) return Response.json({ error: "กรุณากรอกชื่อธุรกิจหรือชื่อระบบ" }, { status: 400 });
+    let customerPhone = "";
+    try {
+      customerPhone = normalizeThaiMobile(payload.customerPhone ?? "");
+    } catch (error) {
+      return Response.json({ error: errorMessage(error) }, { status: 400 });
+    }
+    const db = getDb();
+    const otpChallengeId = payload.otpChallengeId?.trim() ?? "";
+    const [verifiedChallenge] = otpChallengeId ? await db.select({ id: smsOtpChallenges.id }).from(smsOtpChallenges).where(and(
+      eq(smsOtpChallenges.id, otpChallengeId),
+      eq(smsOtpChallenges.userId, user.id),
+      eq(smsOtpChallenges.phone, customerPhone),
+      eq(smsOtpChallenges.status, "verified"),
+    )).limit(1) : [];
+    if (!verifiedChallenge) return Response.json({ error: "กรุณายืนยันเบอร์โทรด้วย SMS OTP ก่อนสร้างระบบ" }, { status: 400 });
     const lineValues = [payload.line?.channelId, payload.line?.channelSecret, payload.line?.accessToken].map((item) => item?.trim() ?? "");
     if (lineValues.some(Boolean) && !lineValues.every(Boolean)) return Response.json({ error: "หากเชื่อม LINE OA ตอนนี้ กรุณากรอก Channel ID, Channel secret และ Channel access token ให้ครบ" }, { status: 400 });
     const aiKey = payload.ai?.apiKey?.trim() ?? "";
@@ -33,7 +50,6 @@ export async function POST(request: Request) {
       lineValues[2] ? encryptSecret(lineValues[2]) : Promise.resolve(""),
       aiKey ? encryptSecret(aiKey) : Promise.resolve(""),
     ]);
-    const db = getDb();
     if (lineValues.every(Boolean)) {
       const [existingChannel] = await db.select({ id: channelAccounts.id }).from(channelAccounts).where(and(
         eq(channelAccounts.ownerUserId, user.id),
@@ -53,7 +69,7 @@ export async function POST(request: Request) {
       systemCode: `MCB-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
       customerName: payload.customerName?.trim() || user.displayName,
       customerEmail: payload.customerEmail?.trim() || user.email,
-      customerPhone: payload.customerPhone?.trim() ?? "",
+      customerPhone,
       plan,
     }).returning();
     const [chatbot] = await db.insert(chatbots).values({
@@ -107,6 +123,7 @@ export async function POST(request: Request) {
       checkoutBaseUrl: "https://chatpospay.com",
       status: "pending",
     });
+    await db.update(smsOtpChallenges).set({ status: "consumed", updatedAt: new Date().toISOString() }).where(eq(smsOtpChallenges.id, verifiedChallenge.id));
     return Response.json({ workspace, chatbot, channelId, providerId }, { status: 201 });
   } catch (error) {
     return Response.json({ error: errorMessage(error) }, { status: 500 });

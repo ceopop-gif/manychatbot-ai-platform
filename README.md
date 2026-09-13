@@ -21,6 +21,8 @@ Copy `.env.example` to `.env` and set the service credentials:
 - `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`: object storage credentials
 - `S3_FORCE_PATH_STYLE`: use `true` for MinIO and most local S3-compatible services
 - `ADMINOA_ENCRYPTION_KEY`: Base64URL-encoded 32-byte key used to encrypt provider and channel secrets
+- `SMSUP_USERNAME`, `SMSUP_PASSWORD`, `SMSUP_OTC_ID`: SMS Up credentials and OTP configuration from the SMS Up console
+- `SMSUP_BASE_URL`: SMS Up API base URL (defaults to `https://pub.smsup-plus.com`)
 
 Never commit `.env` or place provider, LINE, payment, database, or storage credentials in source files.
 
@@ -33,6 +35,8 @@ Never commit `.env` or place provider, LINE, payment, database, or storage crede
 - Merchant dashboard: `/store` (ผู้ใช้ที่สมัครใหม่จะเป็น role `merchant`)
 - Merchant pages: `/store/inbox`, `/store/admins`, `/store/skills`, `/store/ai`, `/store/line`, `/store/payments`, `/store/reports`, `/store/systems`
 - Platform Admin เห็นภาพรวมร้านค้า ผู้ใช้งาน แพ็กเกจ รายได้ และสุขภาพระบบ ส่วน Merchant เห็นเฉพาะข้อมูลร้านและ workspace ของตัวเอง
+- ผู้ใช้ Platform Admin เพิ่มได้จาก `/admin/access` โดยแบ่งเป็น `Owner` (สิทธิ์เต็ม), `Manager` (ภาพรวม/ร้านค้า/รายได้/สุขภาพระบบ) และ `Support` (ภาพรวม/ร้านค้า/สุขภาพระบบ) พร้อมกำหนด permission รายเมนู
+- ระบบตรวจ permission ที่ฝั่ง server ของทั้งหน้า Admin และ API ก่อนอนุญาตเข้าถึงข้อมูล
 - Passwords are stored as salted `scrypt` hashes; plaintext passwords are never stored or returned.
 - Sessions use random, database-hashed tokens in an `HttpOnly`, `SameSite=Strict` cookie and expire after seven days.
 - Login attempts are rate-limited and accounts are temporarily locked after repeated failures.
@@ -58,7 +62,7 @@ npm run build
 npm start
 ```
 
-The production start command listens on `0.0.0.0:3000` by default. EasyPanel should provide `DATABASE_URL`, the S3 settings, `ADMINOA_ENCRYPTION_KEY`, and any application authentication configuration as environment variables.
+The production start command listens on `0.0.0.0:3000` by default. EasyPanel should provide `DATABASE_URL`, the S3 settings, `ADMINOA_ENCRYPTION_KEY`, the SMS Up OTP settings, and any application authentication configuration as environment variables.
 
 ## Database
 

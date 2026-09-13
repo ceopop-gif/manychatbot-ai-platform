@@ -13,7 +13,7 @@ test("password auth uses salted scrypt and constant-time verification", () => {
   assert.match(auth, /scrypt\$/);
   assert.match(auth, /randomBytes\(16\)/);
   assert.match(auth, /timingSafeEqual/);
-  assert.match(auth, /PASSWORD_MIN_LENGTH = 12/);
+  assert.match(auth, /PASSWORD_MIN_LENGTH = 8/);
   assert.doesNotMatch(auth, /passwordHash\s*:\s*password/);
 });
 
