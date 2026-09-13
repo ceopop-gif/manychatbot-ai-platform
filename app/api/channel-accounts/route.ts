@@ -3,19 +3,11 @@ import { getMerchantUser } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";
 import { adminProfiles, aiProviders, channelAccounts, chatbots, conversations } from "@/db/schema";
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
+import { getPublicOrigin } from "@/lib/public-origin";
 import { decryptSecret, encryptSecret } from "@/lib/secret-vault";
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "ไม่สามารถเชื่อมต่อบัญชีช่องทางได้";
-}
-
-function publicOrigin(request: Request) {
-  const requestUrl = new URL(request.url);
-  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
-  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
-  const host = forwardedHost || request.headers.get("host") || requestUrl.host;
-  const protocol = forwardedProto === "http" || forwardedProto === "https" ? forwardedProto : requestUrl.protocol.replace(":", "");
-  return `${protocol}://${host}`;
 }
 
 async function lineFailure(response: Response) {
@@ -46,7 +38,7 @@ export async function GET(request: Request) {
       ? await query.where(and(eq(channelAccounts.chatbotId, chatbotId), eq(channelAccounts.ownerUserId, user.id))).orderBy(desc(channelAccounts.createdAt))
       : await query.where(eq(channelAccounts.ownerUserId, user.id)).orderBy(desc(channelAccounts.createdAt));
     const chats = await db.select({ channelAccountId: conversations.channelAccountId, unreadCount: conversations.unreadCount }).from(conversations).where(eq(conversations.ownerUserId, user.id));
-    return Response.json({ accounts: accounts.map((account) => safeAccount(account, publicOrigin(request), chats.filter((chat) => chat.channelAccountId === account.id).reduce((sum, chat) => sum + chat.unreadCount, 0))) });
+    return Response.json({ accounts: accounts.map((account) => safeAccount(account, getPublicOrigin(request), chats.filter((chat) => chat.channelAccountId === account.id).reduce((sum, chat) => sum + chat.unreadCount, 0))) });
   } catch (error) {
     return Response.json({ error: errorMessage(error) }, { status: 500 });
   }
@@ -114,7 +106,7 @@ export async function POST(request: Request) {
       aiProviderId: payload.aiProviderId || null,
       autoReply: payload.autoReply ?? true,
     }).returning();
-    return Response.json({ account: safeAccount(account, publicOrigin(request)) }, { status: 201 });
+    return Response.json({ account: safeAccount(account, getPublicOrigin(request)) }, { status: 201 });
   } catch (error) {
     return Response.json({ error: errorMessage(error) }, { status: 500 });
   }
@@ -182,7 +174,7 @@ export async function PATCH(request: Request) {
         return Response.json({ error: "กรุณากรอก Channel ID, Channel secret และ Channel access token ให้ครบ" }, { status: 400 });
       }
       const accessToken = await decryptSecret(accessTokenEncrypted);
-      const origin = publicOrigin(request);
+      const origin = getPublicOrigin(request);
       const webhookUrl = `${origin}/api/webhooks/line/${webhookKey}`;
       const infoResponse = await fetchWithTimeout("https://api.line.me/v2/bot/info", {
         headers: { authorization: `Bearer ${accessToken}` },
@@ -237,7 +229,7 @@ export async function PATCH(request: Request) {
       ...changes,
       ...(credentialsChanged ? { status: "pending", connectedAt: null } : {}),
     }).where(eq(channelAccounts.id, id)).returning();
-    return Response.json({ account: safeAccount(account, publicOrigin(request)), connected: false });
+    return Response.json({ account: safeAccount(account, getPublicOrigin(request)), connected: false });
   } catch (error) {
     return Response.json({ error: errorMessage(error) }, { status: 500 });
   }

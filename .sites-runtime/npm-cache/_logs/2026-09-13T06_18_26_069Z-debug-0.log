@@ -7,13 +7,13 @@
 6 silly config load:file:C:\Users\Haiphee\AppData\Roaming\npm\etc\npmrc
 7 verbose title npm run build
 8 verbose argv "run" "build"
-9 verbose logfile logs-max:10 dir:D:\Project\manychatbot-ai-platform\.sites-runtime\npm-cache\_logs\2026-09-13T05_40_33_251Z-
-10 verbose logfile D:\Project\manychatbot-ai-platform\.sites-runtime\npm-cache\_logs\2026-09-13T05_40_33_251Z-debug-0.log
-11 silly logfile start cleaning logs, removing 2 files
+9 verbose logfile logs-max:10 dir:D:\Project\manychatbot-ai-platform\.sites-runtime\npm-cache\_logs\2026-09-13T06_18_26_069Z-
+10 verbose logfile D:\Project\manychatbot-ai-platform\.sites-runtime\npm-cache\_logs\2026-09-13T06_18_26_069Z-debug-0.log
+11 silly logfile start cleaning logs, removing 1 files
 12 silly logfile done cleaning log files
 13 verbose cwd D:\Project\manychatbot-ai-platform
 14 verbose os Windows_NT 10.0.26200
 15 verbose node v26.2.0
 16 verbose npm  v11.13.0
-17 verbose exit 0
-18 info ok
+17 verbose exit -1073740791
+18 verbose code -1073740791

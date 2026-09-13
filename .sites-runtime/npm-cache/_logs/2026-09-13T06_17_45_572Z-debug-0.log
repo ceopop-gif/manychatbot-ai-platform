@@ -1,0 +1,135 @@
+0 verbose cli C:\Program Files\nodejs\node.exe C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js
+1 info using npm@11.13.0
+2 info using node@v26.2.0
+3 silly config load:file:C:\Program Files\nodejs\node_modules\npm\npmrc
+4 silly config load:file:D:\Project\manychatbot-ai-platform\.npmrc
+5 silly config load:file:C:\Users\Haiphee\.npmrc
+6 silly config load:file:C:\Users\Haiphee\AppData\Roaming\npm\etc\npmrc
+7 verbose title npm install
+8 verbose argv "install" "--prefer-offline" "--no-audit" "--no-fund"
+9 verbose logfile logs-max:10 dir:D:\Project\manychatbot-ai-platform\.sites-runtime\npm-cache\_logs\2026-09-13T06_17_45_572Z-
+10 verbose logfile D:\Project\manychatbot-ai-platform\.sites-runtime\npm-cache\_logs\2026-09-13T06_17_45_572Z-debug-0.log
+11 silly logfile start cleaning logs, removing 1 files
+12 silly packumentCache heap:4395630592 maxSize:1098907648 maxEntrySize:549453824
+13 silly logfile done cleaning log files
+14 silly idealTree buildDeps
+15 verbose shrinkwrap failed to load node_modules/.package-lock.json out of date, updated: node_modules
+16 silly reify moves {}
+17 http cache zod@https://registry.npmjs.org/zod/-/zod-3.25.76.tgz 0ms (cache hit)
+18 http cache vite@https://registry.npmjs.org/vite/-/vite-8.0.13.tgz 0ms (cache hit)
+19 http cache tw-animate-css@https://registry.npmjs.org/tw-animate-css/-/tw-animate-css-1.4.0.tgz 1ms (cache hit)
+20 http cache typescript@https://registry.npmjs.org/typescript/-/typescript-5.9.3.tgz 0ms (cache hit)
+21 http cache tailwind-merge@https://registry.npmjs.org/tailwind-merge/-/tailwind-merge-3.6.0.tgz 0ms (cache hit)
+22 http cache tailwindcss@https://registry.npmjs.org/tailwindcss/-/tailwindcss-4.2.1.tgz 0ms (cache hit)
+23 http cache sonner@https://registry.npmjs.org/sonner/-/sonner-2.0.8.tgz 0ms (cache hit)
+24 http cache vinext@https://registry.npmjs.org/vinext/-/vinext-0.0.50.tgz 0ms (cache hit)
+25 http cache vaul@https://registry.npmjs.org/vaul/-/vaul-1.1.2.tgz 0ms (cache hit)
+26 http cache recharts@https://registry.npmjs.org/recharts/-/recharts-3.8.0.tgz 0ms (cache hit)
+27 http cache react-server-dom-webpack@https://registry.npmjs.org/react-server-dom-webpack/-/react-server-dom-webpack-19.2.6.tgz 0ms (cache hit)
+28 http cache react-dom@https://registry.npmjs.org/react-dom/-/react-dom-19.2.6.tgz 0ms (cache hit)
+29 http cache react-day-picker@https://registry.npmjs.org/react-day-picker/-/react-day-picker-10.0.1.tgz 0ms (cache hit)
+30 http cache react-hook-form@https://registry.npmjs.org/react-hook-form/-/react-hook-form-7.85.0.tgz 0ms (cache hit)
+31 http cache react-resizable-panels@https://registry.npmjs.org/react-resizable-panels/-/react-resizable-panels-4.12.2.tgz 0ms (cache hit)
+32 http cache radix-ui@https://registry.npmjs.org/radix-ui/-/radix-ui-1.6.7.tgz 0ms (cache hit)
+33 http cache react@https://registry.npmjs.org/react/-/react-19.2.6.tgz 0ms (cache hit)
+34 http cache next-themes@https://registry.npmjs.org/next-themes/-/next-themes-0.4.6.tgz 0ms (cache hit)
+35 http cache pdfjs-dist@https://registry.npmjs.org/pdfjs-dist/-/pdfjs-dist-6.3.289.tgz 0ms (cache hit)
+36 http cache postgres@https://registry.npmjs.org/postgres/-/postgres-3.4.9.tgz 0ms (cache hit)
+37 http cache input-otp@https://registry.npmjs.org/input-otp/-/input-otp-1.4.2.tgz 0ms (cache hit)
+38 http cache drizzle-orm@https://registry.npmjs.org/drizzle-orm/-/drizzle-orm-0.45.2.tgz 0ms (cache hit)
+39 http cache lucide-react@https://registry.npmjs.org/lucide-react/-/lucide-react-1.31.0.tgz 0ms (cache hit)
+40 http cache eslint-config-next@https://registry.npmjs.org/eslint-config-next/-/eslint-config-next-16.2.6.tgz 0ms (cache hit)
+41 http cache next@https://registry.npmjs.org/next/-/next-16.2.6.tgz 0ms (cache hit)
+42 http cache embla-carousel-react@https://registry.npmjs.org/embla-carousel-react/-/embla-carousel-react-8.6.0.tgz 0ms (cache hit)
+43 http cache eslint@https://registry.npmjs.org/eslint/-/eslint-9.39.4.tgz 0ms (cache hit)
+44 http cache date-fns@https://registry.npmjs.org/date-fns/-/date-fns-4.4.0.tgz 0ms (cache hit)
+45 http cache clsx@https://registry.npmjs.org/clsx/-/clsx-2.1.1.tgz 0ms (cache hit)
+46 http cache cmdk@https://registry.npmjs.org/cmdk/-/cmdk-1.1.1.tgz 0ms (cache hit)
+47 http cache drizzle-kit@https://registry.npmjs.org/drizzle-kit/-/drizzle-kit-0.31.10.tgz 0ms (cache hit)
+48 http cache @types/react-dom@https://registry.npmjs.org/@types/react-dom/-/react-dom-19.2.3.tgz 0ms (cache hit)
+49 http cache @vitejs/plugin-react@https://registry.npmjs.org/@vitejs/plugin-react/-/plugin-react-6.0.2.tgz 0ms (cache hit)
+50 http cache @vitejs/plugin-rsc@https://registry.npmjs.org/@vitejs/plugin-rsc/-/plugin-rsc-0.5.26.tgz 0ms (cache hit)
+51 http cache @types/react@https://registry.npmjs.org/@types/react/-/react-19.2.14.tgz 0ms (cache hit)
+52 http cache class-variance-authority@https://registry.npmjs.org/class-variance-authority/-/class-variance-authority-0.7.1.tgz 0ms (cache hit)
+53 http cache @types/node@https://registry.npmjs.org/@types/node/-/node-22.19.19.tgz 0ms (cache hit)
+54 http cache @base-ui/react@https://registry.npmjs.org/@base-ui/react/-/react-1.7.0.tgz 0ms (cache hit)
+55 http cache @tailwindcss/postcss@https://registry.npmjs.org/@tailwindcss/postcss/-/postcss-4.2.1.tgz 0ms (cache hit)
+56 http cache @shadcn/react@https://registry.npmjs.org/@shadcn/react/-/react-0.3.0.tgz 0ms (cache hit)
+57 http cache @aws-sdk/client-s3@https://registry.npmjs.org/@aws-sdk/client-s3/-/client-s3-3.1131.0.tgz 0ms (cache hit)
+58 http cache @hookform/resolvers@https://registry.npmjs.org/@hookform/resolvers/-/resolvers-5.7.1.tgz 0ms (cache hit)
+59 http cache @radix-ui/react-slot@https://registry.npmjs.org/@radix-ui/react-slot/-/react-slot-1.3.3.tgz 0ms (cache hit)
+60 http cache picomatch@https://registry.npmjs.org/picomatch/-/picomatch-4.0.4.tgz 0ms (cache hit)
+61 http cache lightningcss-win32-x64-msvc@https://registry.npmjs.org/lightningcss-win32-x64-msvc/-/lightningcss-win32-x64-msvc-1.32.0.tgz 0ms (cache hit)
+62 http cache reselect@https://registry.npmjs.org/reselect/-/reselect-5.1.1.tgz 0ms (cache hit)
+63 http cache @radix-ui/react-compose-refs@https://registry.npmjs.org/@radix-ui/react-compose-refs/-/react-compose-refs-1.1.5.tgz 0ms (cache hit)
+64 http cache postcss@https://registry.npmjs.org/postcss/-/postcss-8.4.31.tgz 0ms (cache hit)
+65 http cache @rolldown/pluginutils@https://registry.npmjs.org/@rolldown/pluginutils/-/pluginutils-1.0.0-rc.18.tgz 0ms (cache hit)
+66 http cache lightningcss@https://registry.npmjs.org/lightningcss/-/lightningcss-1.32.0.tgz 0ms (cache hit)
+67 http cache json-schema-traverse@https://registry.npmjs.org/json-schema-traverse/-/json-schema-traverse-0.4.1.tgz 0ms (cache hit)
+68 http cache ajv@https://registry.npmjs.org/ajv/-/ajv-6.15.0.tgz 0ms (cache hit)
+69 http cache @esbuild/win32-x64@https://registry.npmjs.org/@esbuild/win32-x64/-/win32-x64-0.25.12.tgz 0ms (cache hit)
+70 http cache esbuild@https://registry.npmjs.org/esbuild/-/esbuild-0.25.12.tgz 0ms (cache hit)
+71 http cache globals@https://registry.npmjs.org/globals/-/globals-16.4.0.tgz 0ms (cache hit)
+72 info run esbuild@0.25.12 postinstall node_modules/drizzle-kit/node_modules/esbuild node install.js
+73 info run esbuild@0.25.12 postinstall { code: 0, signal: null }
+74 silly ADD node_modules/zod
+75 silly ADD node_modules/vite
+76 silly ADD node_modules/vite/node_modules/picomatch
+77 silly ADD node_modules/vite/node_modules/lightningcss-win32-x64-msvc
+78 silly ADD node_modules/vite/node_modules/lightningcss
+79 silly ADD node_modules/vinext
+80 silly ADD node_modules/vaul
+81 silly ADD node_modules/typescript
+82 silly ADD node_modules/tw-animate-css
+83 silly ADD node_modules/tailwindcss
+84 silly ADD node_modules/tailwind-merge
+85 silly ADD node_modules/sonner
+86 silly ADD node_modules/recharts
+87 silly ADD node_modules/recharts/node_modules/reselect
+88 silly ADD node_modules/react-server-dom-webpack
+89 silly ADD node_modules/react-resizable-panels
+90 silly ADD node_modules/react-hook-form
+91 silly ADD node_modules/react-dom
+92 silly ADD node_modules/react-day-picker
+93 silly ADD node_modules/react
+94 silly ADD node_modules/radix-ui
+95 silly ADD node_modules/radix-ui/node_modules/@radix-ui/react-slot
+96 silly ADD node_modules/radix-ui/node_modules/@radix-ui/react-compose-refs
+97 silly ADD node_modules/postgres
+98 silly ADD node_modules/pdfjs-dist
+99 silly ADD node_modules/next-themes
+100 silly ADD node_modules/next
+101 silly ADD node_modules/next/node_modules/postcss
+102 silly ADD node_modules/lucide-react
+103 silly ADD node_modules/input-otp
+104 silly ADD node_modules/eslint-config-next
+105 silly ADD node_modules/eslint-config-next/node_modules/globals
+106 silly ADD node_modules/eslint
+107 silly ADD node_modules/eslint/node_modules/json-schema-traverse
+108 silly ADD node_modules/eslint/node_modules/ajv
+109 silly ADD node_modules/embla-carousel-react
+110 silly ADD node_modules/drizzle-orm
+111 silly ADD node_modules/drizzle-kit
+112 silly ADD node_modules/drizzle-kit/node_modules/esbuild
+113 silly ADD node_modules/drizzle-kit/node_modules/@esbuild/win32-x64
+114 silly ADD node_modules/date-fns
+115 silly ADD node_modules/cmdk
+116 silly ADD node_modules/clsx
+117 silly ADD node_modules/class-variance-authority
+118 silly ADD node_modules/@vitejs/plugin-rsc
+119 silly ADD node_modules/@vitejs/plugin-rsc/node_modules/@rolldown/pluginutils
+120 silly ADD node_modules/@vitejs/plugin-react
+121 silly ADD node_modules/@types/react-dom
+122 silly ADD node_modules/@types/react
+123 silly ADD node_modules/@types/node
+124 silly ADD node_modules/@tailwindcss/postcss
+125 silly ADD node_modules/@shadcn/react
+126 silly ADD node_modules/@hookform/resolvers
+127 silly ADD node_modules/@base-ui/react
+128 silly ADD node_modules/@aws-sdk/client-s3
+129 verbose cwd D:\Project\manychatbot-ai-platform
+130 verbose os Windows_NT 10.0.26200
+131 verbose node v26.2.0
+132 verbose npm  v11.13.0
+133 verbose exit 0
+134 info ok
