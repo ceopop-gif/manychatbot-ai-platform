@@ -3,7 +3,7 @@ import { getMerchantUser } from "@/app/chatgpt-auth";
 import { getDb } from "@/db";
 import { channelAccounts, conversations, messages } from "@/db/schema";
 import { getPublicOrigin } from "@/lib/public-origin";
-import { getStorage } from "@/lib/storage";
+import { uploadToCloudinary } from "@/lib/cloudinary";
 
 const MAX_IMAGE_BYTES = 1 * 1024 * 1024;
 const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png"]);
@@ -26,8 +26,16 @@ export async function POST(request: Request) {
     if (!account) return Response.json({ error: "ไม่พบบัญชีช่องทาง" }, { status: 404 });
 
     const id = crypto.randomUUID();
-    const mediaKey = `conversation-media/${user.id}/${id}`;
-    await getStorage().put(mediaKey, await file.arrayBuffer(), file.type);
+    const bytes = await file.arrayBuffer();
+    const cloudinaryAsset = await uploadToCloudinary({
+      ownerUserId: user.id,
+      workspaceId: conversation.workspaceId,
+      category: "conversation-media",
+      assetId: id,
+      fileName: file.name,
+      bytes,
+      contentType: file.type,
+    });
     const now = new Date().toISOString();
     await db.insert(messages).values({
       id,
@@ -38,12 +46,15 @@ export async function POST(request: Request) {
       senderName: user.displayName,
       content: "[รูปภาพ]",
       messageType: "image",
-      mediaKey,
+      mediaKey: "",
       mediaContentType: file.type,
+      cloudinaryPublicId: cloudinaryAsset?.publicId ?? "",
+      cloudinaryUrl: cloudinaryAsset?.secureUrl ?? "",
+      cloudinaryResourceType: cloudinaryAsset?.resourceType ?? "",
       deliveryStatus: "draft",
       createdAt: now,
     });
-    return Response.json({ mediaId: id, mediaUrl: `${getPublicOrigin(request)}/api/conversations/media/${id}` });
+    return Response.json({ mediaId: id, mediaUrl: cloudinaryAsset?.secureUrl || `${getPublicOrigin(request)}/api/conversations/media/${id}` });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "อัปโหลดรูปภาพไม่สำเร็จ" }, { status: 500 });
   }

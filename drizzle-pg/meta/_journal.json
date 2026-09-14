@@ -43,6 +43,13 @@
       "when": 1789278000000,
       "tag": "0005_add_message_media",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789279000000,
+      "tag": "0006_add_cloudinary_assets",
+      "breakpoints": true
     }
   ]
 }

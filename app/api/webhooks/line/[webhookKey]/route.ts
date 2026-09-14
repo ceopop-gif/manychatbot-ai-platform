@@ -15,7 +15,7 @@ import { buildSkillInstruction, generateAiReply, routeToAdmin, type ChatTurn, ty
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { decryptSecret } from "@/lib/secret-vault";
 import { compileSkillMarkdown } from "@/lib/skill-markdown";
-import { getStorage } from "@/lib/storage";
+import { uploadToCloudinary, type CloudinaryAsset } from "@/lib/cloudinary";
 
 type LineEvent = {
   type?: string;
@@ -86,7 +86,14 @@ export async function POST(
       if (event.type !== "message" || !["text", "image", "sticker"].includes(event.message?.type ?? "")) continue;
       const ingested = await ingestMessageEvent(account, accessToken, event);
       if (!ingested) continue;
-      jobs.push(() => processTextEvent(account, accessToken, event, ingested));
+      jobs.push(async () => {
+        try {
+          await markLineChatAsRead(accessToken, ingested.sourceId);
+        } catch (error) {
+          console.error("LINE mark-as-read failed", error);
+        }
+        await processTextEvent(account, accessToken, event, ingested);
+      });
       processed += 1;
     } catch (error) {
       console.error("LINE webhook event ingestion failed", error);
@@ -155,8 +162,9 @@ async function ingestMessageEvent(
   }
   if (!conversation) throw new Error("conversation unavailable");
 
-  let mediaKey = "";
+  const mediaKey = "";
   let mediaContentType = "";
+  let cloudinaryAsset: CloudinaryAsset | null = null;
   if (messageType === "image") {
     const lineMessageId = event.message?.id?.trim();
     if (!lineMessageId) throw new Error("LINE image message id unavailable");
@@ -166,8 +174,15 @@ async function ingestMessageEvent(
     if (!mediaResponse.ok) throw new Error(`ดาวน์โหลดรูปภาพจาก LINE ไม่สำเร็จ HTTP ${mediaResponse.status}`);
     const body = await mediaResponse.arrayBuffer();
     mediaContentType = mediaResponse.headers.get("content-type")?.split(";")[0] || "image/jpeg";
-    mediaKey = `conversation-media/${account.ownerUserId}/${crypto.randomUUID()}`;
-    await getStorage().put(mediaKey, body, mediaContentType);
+    cloudinaryAsset = await uploadToCloudinary({
+      ownerUserId: account.ownerUserId,
+      workspaceId: bot.workspaceId,
+      category: "conversation-media",
+      assetId: lineMessageId,
+      fileName: lineMessageId,
+      bytes: body,
+      contentType: mediaContentType,
+    });
   }
 
   const messageId = crypto.randomUUID();
@@ -182,6 +197,9 @@ async function ingestMessageEvent(
     messageType,
     mediaKey,
     mediaContentType,
+    cloudinaryPublicId: cloudinaryAsset?.publicId ?? "",
+    cloudinaryUrl: cloudinaryAsset?.secureUrl ?? "",
+    cloudinaryResourceType: cloudinaryAsset?.resourceType ?? "",
     stickerPackageId: event.message?.packageId?.trim() ?? "",
     stickerId: event.message?.stickerId?.trim() ?? "",
     externalMessageId: externalEventId,
@@ -297,7 +315,12 @@ async function processTextEvent(
   }
 
   let replyAttempted = false;
+  let acknowledgementSent = false;
   try {
+    const acknowledgement = "ได้รับข้อความแล้วค่ะ กำลังอ่านรายละเอียดและตรวจสอบข้อมูลให้นะคะ";
+    await replyToLine(accessToken, event.replyToken, acknowledgement);
+    acknowledgementSent = true;
+
     const recent = await db.select().from(messages).where(eq(messages.conversationId, conversation.id)).orderBy(desc(messages.createdAt)).limit(12);
     const turns: ChatTurn[] = recent.reverse().map((message) => ({
       role: message.senderType === "customer" ? "user" : "assistant",
@@ -313,7 +336,9 @@ async function processTextEvent(
           accessToken,
           event.replyToken,
           "ได้รับข้อความแล้วค่ะ คำถามนี้ต้องให้เจ้าหน้าที่ตรวจสอบเพิ่มเติม กำลังส่งต่อให้เจ้าหน้าที่ดูแลนะคะ",
-          decision.reason
+          decision.reason,
+          ingested.sourceId,
+          acknowledgementSent
         );
       }
       return;
@@ -321,10 +346,11 @@ async function processTextEvent(
     const { admin, skill } = selected;
     const instruction = buildSkillInstruction(admin, skill, decision.reason);
     const result = await generateAiReply(provider, instruction, turns);
-    const answer = `ตอบโดย ${admin.name}\n\n${result.text}`.slice(0, 4900);
+    const answer = removeReplyLabel(result.text).slice(0, 4900);
+    if (!answer) throw new Error("AI Provider ไม่ส่งข้อความคำตอบกลับมา");
     if (!(await canAutoReply(freshAccount.id, conversation.id, ingested.externalEventId))) return;
     replyAttempted = true;
-    await replyToLine(accessToken, event.replyToken, answer);
+    await pushToLine(accessToken, ingested.sourceId, answer);
     const sentAt = new Date().toISOString();
     await db.insert(messages).values({
       id: crypto.randomUUID(),
@@ -376,7 +402,16 @@ async function processTextEvent(
       return;
     }
     if (await canAutoReply(freshAccount.id, conversation.id, ingested.externalEventId)) {
-      await sendFallbackReply(freshAccount.ownerUserId, conversation.id, accessToken, event.replyToken, "ได้รับข้อความแล้วค่ะ ระบบกำลังส่งต่อให้เจ้าหน้าที่ตรวจสอบเพื่อให้ข้อมูลที่ถูกต้อง", reason);
+      await sendFallbackReply(
+        freshAccount.ownerUserId,
+        conversation.id,
+        accessToken,
+        event.replyToken,
+        "ได้รับข้อความแล้วค่ะ ระบบกำลังส่งต่อให้เจ้าหน้าที่ตรวจสอบเพื่อให้ข้อมูลที่ถูกต้อง",
+        reason,
+        ingested.sourceId,
+        acknowledgementSent
+      );
     }
   }
 }
@@ -400,11 +435,21 @@ async function canAutoReply(accountId: string, conversationId: string, externalE
   );
 }
 
-async function sendFallbackReply(ownerUserId: string, conversationId: string, accessToken: string, replyToken: string | undefined, text: string, reason: string) {
+async function sendFallbackReply(
+  ownerUserId: string,
+  conversationId: string,
+  accessToken: string,
+  replyToken: string | undefined,
+  text: string,
+  reason: string,
+  pushTargetId = "",
+  replyAlreadyUsed = false
+) {
   const db = getDb();
   let deliveryStatus = "sent";
   try {
-    await replyToLine(accessToken, replyToken, text);
+    if (replyAlreadyUsed) await pushToLine(accessToken, pushTargetId, text);
+    else await replyToLine(accessToken, replyToken, text);
   } catch {
     deliveryStatus = "failed";
   }
@@ -445,6 +490,36 @@ async function replyToLine(accessToken: string, replyToken: string | undefined, 
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
     throw new Error(`LINE ตอบข้อความไม่สำเร็จ (HTTP ${response.status}) ${detail.slice(0, 160)}`.trim());
+  }
+}
+
+async function pushToLine(accessToken: string, to: string, text: string) {
+  if (!to) throw new Error("LINE event ไม่มีปลายทางสำหรับส่งข้อความ");
+  const response = await fetchWithTimeout("https://api.line.me/v2/bot/message/push", {
+    method: "POST",
+    headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
+    body: JSON.stringify({ to, messages: [{ type: "text", text }] }),
+  }, 10_000, "LINE ใช้เวลาส่งข้อความนานเกิน 10 วินาที");
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(`LINE ส่งข้อความไม่สำเร็จ (HTTP ${response.status}) ${detail.slice(0, 160)}`.trim());
+  }
+}
+
+function removeReplyLabel(text: string) {
+  return text.replace(/^\s*ตอบโดย[^\r\n]*(?:\r?\n)+/i, "").trim();
+}
+
+async function markLineChatAsRead(accessToken: string, chatId: string) {
+  if (!chatId) return;
+  const response = await fetchWithTimeout("https://api.line.me/v2/bot/chat/markAsRead", {
+    method: "POST",
+    headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
+    body: JSON.stringify({ chatId }),
+  }, 10_000, "LINE ใช้เวลาอัปเดตสถานะอ่านข้อความนานเกิน 10 วินาที");
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(`LINE อัปเดตสถานะอ่านข้อความไม่สำเร็จ (HTTP ${response.status}) ${detail.slice(0, 160)}`.trim());
   }
 }
 

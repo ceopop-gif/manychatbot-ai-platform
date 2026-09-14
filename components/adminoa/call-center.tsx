@@ -63,7 +63,7 @@ export function CallCenterView({
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<InboxFilter>("all");
   const [mobileThread, setMobileThread] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const messagesScrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const effectiveSelectedId = conversations.some((item) => item.id === selectedId)
     ? selectedId
@@ -96,8 +96,12 @@ export function CallCenterView({
         firstLoad = false;
       }
     };
-    const initialLoad = window.setTimeout(() => void loadThread(), 0);
-    const timer = window.setInterval(() => void loadThread(), 7000);
+    const initialLoad = window.setTimeout(() => {
+      void loadThread().catch(() => undefined);
+    }, 0);
+    const timer = window.setInterval(() => {
+      void loadThread().catch(() => undefined);
+    }, 7000);
     return () => {
       cancelled = true;
       window.clearTimeout(initialLoad);
@@ -118,8 +122,10 @@ export function CallCenterView({
   }, [onReload, selected?.id, selected?.unreadCount]);
 
   useEffect(() => {
-    if (lastMessageId) bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [lastMessageId]);
+    if (!lastMessageId || loadingThread) return;
+    const container = messagesScrollRef.current;
+    if (container) container.scrollTop = container.scrollHeight;
+  }, [effectiveSelectedId, lastMessageId, loadingThread]);
 
   async function sendReply() {
     if (!selected || (!reply.trim() && !pendingImage && !pendingSticker)) return;
@@ -208,8 +214,8 @@ export function CallCenterView({
   }
 
   return (
-    <div className="flex min-h-0 flex-1 overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_16px_45px_rgba(15,23,42,0.08)]">
-      <section className={`${mobileThread ? "hidden md:flex" : "flex"} w-full min-w-0 flex-col border-r border-slate-200 md:w-[330px] md:shrink-0 lg:w-[380px]`}>
+    <div className="flex h-full min-h-0 flex-1 overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-[0_16px_45px_rgba(15,23,42,0.08)]">
+      <section className={`${mobileThread ? "hidden md:flex" : "flex"} min-h-0 w-full min-w-0 flex-col border-r border-slate-200 md:w-[330px] md:shrink-0 lg:w-[380px]`}>
         <div className="border-b border-slate-200 p-4">
           <div className="flex items-center justify-between"><div><h1 className="text-xl font-black text-slate-950">ข้อความ LINE OA</h1><p className="text-xs text-slate-500">กล่องกลาง · {admins.filter((item) => item.status === "active" && item.activeSkillCount > 0).length} Admin พร้อม</p></div><Badge className="border-0 bg-emerald-50 text-emerald-700"><span className="size-1.5 rounded-full bg-emerald-500" /> อัปเดตสด</Badge></div>
           <div className="relative mt-4"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" /><Input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="ค้นหาลูกค้า คำถาม หรือ Admin" className="h-10 rounded-xl bg-slate-50 pl-9" /></div>
@@ -236,7 +242,7 @@ export function CallCenterView({
         </div>
       </section>
 
-      <section className={`${mobileThread ? "flex" : "hidden"} min-w-0 flex-1 flex-col md:flex`}>
+      <section className={`${mobileThread ? "flex" : "hidden"} min-h-0 min-w-0 flex-1 flex-col md:flex`}>
         {selected && <>
           <header className="flex min-h-[72px] items-center gap-3 border-b border-slate-200 px-3 md:px-5">
             <Button variant="ghost" size="icon-sm" className="md:hidden" onClick={() => setMobileThread(false)} aria-label="กลับ"><ArrowLeft /></Button>
@@ -244,7 +250,7 @@ export function CallCenterView({
             <div className="min-w-0"><h2 className="truncate text-sm font-black text-slate-950">{selected.customerName}</h2><p className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500"><ChannelMark platform={selected.platform} compact /> {selected.channelName || "LINE OA"}</p></div>
             <div className="ml-auto text-right">{selected.humanTakeover ? <><p className="text-xs font-black text-amber-700">โหมดพนักงานจริง</p><p className="text-xs text-slate-400">{selected.humanAgentName || "รอผู้รับช่วง"}</p></> : <><p className="text-xs font-black text-emerald-700">AI Router ทำงาน</p><p className="text-xs text-slate-400">เลือก Admin ตามคำถาม</p></>}</div>
           </header>
-          <div className="min-h-0 flex-1 overflow-y-auto bg-[#f7f9fb] p-4 md:p-6">
+          <div ref={messagesScrollRef} className="min-h-0 flex-1 overflow-y-auto bg-[#f7f9fb] p-4 md:p-6">
             <div className="mx-auto max-w-2xl space-y-4">
               {loadingThread ? <div className="flex justify-center py-12"><LoaderCircle className="size-6 animate-spin text-emerald-700" /></div> : messages.map((message) => {
                 const outbound = message.direction === "outbound";
@@ -259,7 +265,6 @@ export function CallCenterView({
                   </div>
                 );
               })}
-              <div ref={bottomRef} />
             </div>
           </div>
           <div className="border-t border-slate-200 bg-white p-4">
@@ -278,7 +283,7 @@ export function CallCenterView({
           <p className="text-xs font-bold text-slate-500">ผลวิเคราะห์คำถามล่าสุด</p>
           <div className="mt-4 flex items-center gap-3">{selected.humanTakeover ? <span className="flex size-10 items-center justify-center rounded-xl bg-amber-100 text-amber-800"><UsersRound className="size-5" /></span> : selected.adminName ? <AdminAvatar name={selected.adminName} avatarId={selected.adminAvatarId} small /> : <span className="flex size-10 items-center justify-center rounded-xl bg-slate-100 text-slate-500"><Route className="size-5" /></span>}<div className="min-w-0"><p className="truncate text-sm font-black text-slate-900">{selected.humanTakeover ? selected.humanAgentName || "รอพนักงานรับช่วง" : selected.adminName || "รอ AI Router วิเคราะห์"}</p><p className="truncate text-xs text-slate-500">{selected.humanTakeover ? "AI ไม่ตอบต่อจนกว่าจะคืนงาน" : selected.skillName || "จะเลือกใหม่เมื่อมีคำถาม"}</p></div></div>
         </div>
-        <div className="space-y-4 p-5">
+        <div className="min-h-0 space-y-4 overflow-y-auto p-5">
           {selected.humanTakeover ? <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4"><div className="flex items-center gap-2 text-sm font-black text-amber-900"><UsersRound className="size-4" /> ส่งต่อพนักงานจริง</div><p className="mt-2 text-xs leading-5 text-amber-800">{selected.routingReason || "ไม่มี Admin AI ที่ตรงหรือมีข้อมูลมั่นใจพอ"}</p></div> : <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-4"><div className="flex items-center gap-2 text-sm font-black text-indigo-950"><CheckCircle2 className="size-4" /> Router เลือก {selected.adminName || "Admin"}</div><p className="mt-2 text-xs leading-5 text-indigo-800">{selected.routingReason || "จับคู่จากความหมายของคำถามและขอบเขต Skill"}</p>{selected.routingConfidence > 0 && <div className="mt-3 flex items-center justify-between text-xs font-bold text-indigo-900"><span>ความมั่นใจ</span><span>{selected.routingConfidence}%</span></div>}</div>}
 
           {!selected.humanTakeover ? <Button disabled={acting} onClick={() => updateConversation({ takeover: "claim" }, "รับช่วงจาก AI Router แล้ว")} className="w-full rounded-xl bg-amber-600 hover:bg-amber-700"><UsersRound /> ให้พนักงานรับช่วง</Button> : <div className="grid gap-2">{!selected.humanAgentName && <Button disabled={acting} onClick={() => updateConversation({ takeover: "claim" }, "คุณรับช่วงบทสนทนานี้แล้ว")} className="w-full rounded-xl bg-amber-600 hover:bg-amber-700"><UserRoundCog /> รับงานนี้</Button>}<Button disabled={acting} variant="outline" onClick={() => updateConversation({ takeover: "release" }, "คืนให้ AI Router แล้ว")} className="w-full rounded-xl"><BrainCircuit /> คืนให้ AI Router</Button></div>}

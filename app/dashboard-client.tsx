@@ -24,6 +24,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogMedia, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AdminsView, SkillsView } from "@/components/adminoa/admin-skills";
@@ -58,11 +59,30 @@ const navItems: Array<{ id: View; label: string; href: string; icon: typeof Layo
   { id: "systems", label: "ระบบร้านค้า", href: "/store/systems", icon: Building2 },
 ];
 
+const DASHBOARD_REQUEST_TIMEOUT_MS = 12_000;
+
+async function fetchDashboard(input: RequestInfo | URL, init: RequestInit = {}) {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), DASHBOARD_REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error("โหลดข้อมูลระบบใช้เวลานานเกิน 12 วินาที กรุณาลองใหม่อีกครั้ง");
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
 export default function DashboardClient({ displayName = "บัญชีร้านค้า", initialView = "overview" }: { displayName?: string; initialView?: View }) {
   const router = useRouter();
   const pathname = usePathname();
   const view = navItems.find((item) => item.href === pathname)?.id ?? initialView;
   const [mobileNav, setMobileNav] = useState(false);
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [loading, setLoading] = useState(true);
   const [workspaceLoading, setWorkspaceLoading] = useState(false);
   const [workspaces, setWorkspaces] = useState<WorkspaceRecord[]>([]);
@@ -85,20 +105,22 @@ export default function DashboardClient({ displayName = "บัญชีร้�
   const currentTitle = navItems.find((item) => item.id === view)?.label ?? "ChatMarathon";
 
   async function logout() {
-    if (!window.confirm("ต้องการออกจากระบบหรือไม่?")) return;
-    const response = await fetch("/api/auth/logout", { method: "POST" });
-    if (!response.ok) {
+    setLoggingOut(true);
+    try {
+      const response = await fetch("/api/auth/logout", { method: "POST" });
+      if (!response.ok) throw new Error("logout failed");
+      window.location.assign("/login");
+    } catch {
       toast.error("ออกจากระบบไม่สำเร็จ");
-      return;
+      setLoggingOut(false);
     }
-    window.location.assign("/login");
   }
 
   const loadGlobal = useCallback(async (preferredWorkspaceId?: string) => {
     const [workspaceResponse, botResponse, accountResponse] = await Promise.all([
-      fetch("/api/workspaces"),
-      fetch("/api/chatbots"),
-      fetch("/api/channel-accounts"),
+      fetchDashboard("/api/workspaces"),
+      fetchDashboard("/api/chatbots"),
+      fetchDashboard("/api/channel-accounts"),
     ]);
     const [workspaceData, botData, accountData] = await Promise.all([
       workspaceResponse.json(),
@@ -126,12 +148,12 @@ export default function DashboardClient({ displayName = "บัญชีร้�
     try {
       const query = encodeURIComponent(workspaceId);
       const [adminResponse, skillResponse, providerResponse, conversationResponse, reportResponse, paymentResponse] = await Promise.all([
-        fetch(`/api/admins?workspaceId=${query}`),
-        fetch(`/api/skills?workspaceId=${query}`),
-        fetch(`/api/ai-providers?workspaceId=${query}`),
-        fetch(`/api/conversations?workspaceId=${query}`),
-        fetch(`/api/reports?workspaceId=${query}`),
-        fetch(`/api/payments?workspaceId=${query}`),
+        fetchDashboard(`/api/admins?workspaceId=${query}`),
+        fetchDashboard(`/api/skills?workspaceId=${query}`),
+        fetchDashboard(`/api/ai-providers?workspaceId=${query}`),
+        fetchDashboard(`/api/conversations?workspaceId=${query}`),
+        fetchDashboard(`/api/reports?workspaceId=${query}`),
+        fetchDashboard(`/api/payments?workspaceId=${query}`),
       ]);
       const [adminData, skillData, providerData, conversationData, reportData, nextPaymentData] = await Promise.all([
         adminResponse.json(),
@@ -163,8 +185,8 @@ export default function DashboardClient({ displayName = "บัญชีร้�
     try {
       const query = encodeURIComponent(workspaceId);
       const [conversationResponse, reportResponse] = await Promise.all([
-        fetch(`/api/conversations?workspaceId=${query}`),
-        fetch(`/api/reports?workspaceId=${query}`),
+        fetchDashboard(`/api/conversations?workspaceId=${query}`),
+        fetchDashboard(`/api/reports?workspaceId=${query}`),
       ]);
       if (!conversationResponse.ok || !reportResponse.ok) return;
       const [conversationData, reportData] = await Promise.all([
@@ -195,8 +217,12 @@ export default function DashboardClient({ displayName = "บัญชีร้�
   useEffect(() => {
     if (!activeWorkspaceId) return;
     activeWorkspaceRef.current = activeWorkspaceId;
-    const initialLoad = window.setTimeout(() => void loadWorkspaceData(activeWorkspaceId), 0);
-    const timer = window.setInterval(() => void refreshLiveInbox(activeWorkspaceId), 8000);
+    const initialLoad = window.setTimeout(() => {
+      void loadWorkspaceData(activeWorkspaceId).catch(() => undefined);
+    }, 0);
+    const timer = window.setInterval(() => {
+      void refreshLiveInbox(activeWorkspaceId).catch(() => undefined);
+    }, 8000);
     return () => {
       window.clearTimeout(initialLoad);
       window.clearInterval(timer);
@@ -265,8 +291,8 @@ export default function DashboardClient({ displayName = "บัญชีร้�
                   : <SystemsView workspaces={workspaces} activeWorkspaceId={activeWorkspaceId} bots={bots} onSelectWorkspace={setActiveWorkspaceId} onCreateWorkspace={createWorkspace} onCreateBot={createBot} />;
 
   return (
-    <main className="min-h-screen bg-[#f0f7f3] text-slate-950">
-      <div className="flex min-h-screen">
+    <main className={`min-h-screen bg-[#f0f7f3] text-slate-950 ${view === "inbox" ? "h-screen overflow-hidden" : ""}`}>
+      <div className={`flex ${view === "inbox" ? "h-full min-h-0" : "min-h-screen"}`}>
         <aside className={`fixed inset-y-0 left-0 z-50 flex w-[270px] flex-col border-r border-white/10 bg-[#0b2114] p-4 text-white transition-transform lg:static lg:translate-x-0 ${mobileNav ? "translate-x-0" : "-translate-x-full"}`}>
           <div className="flex items-center gap-3 px-2 py-2">
             <span className="relative flex size-11 items-center justify-center rounded-[15px] bg-[#06C755] text-white shadow-lg shadow-emerald-950/40"><Bot className="size-5" /><span className="absolute -right-1 -top-1 size-3 rounded-full border-2 border-[#0b2114] bg-white" /></span>
@@ -292,7 +318,7 @@ export default function DashboardClient({ displayName = "บัญชีร้�
               <div className="flex items-center gap-2 text-xs font-bold text-slate-300"><ShieldCheck className="size-4 text-emerald-300" /> AI Router เลือกตาม Skill</div>
               <div className="mt-3 grid grid-cols-3 gap-1 text-center"><div className="rounded-lg bg-white/5 p-2"><strong className="block text-sm text-white">{admins.length}</strong><span className="text-xs text-slate-500">Admin</span></div><div className="rounded-lg bg-white/5 p-2"><strong className="block text-sm text-white">{skills.length}</strong><span className="text-xs text-slate-500">Skill</span></div><div className="rounded-lg bg-white/5 p-2"><strong className="block text-sm text-white">{providers.filter((item) => item.status === "active").length}</strong><span className="text-xs text-slate-500">AI</span></div></div>
             </div>
-            <div className="mt-3 flex items-center gap-3 rounded-2xl bg-white/5 p-3"><span className="flex size-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-900"><Crown className="size-5" /></span><div className="min-w-0"><p className="truncate text-xs font-black">{displayName}</p><p className="truncate text-xs text-slate-400">บัญชีร้านค้า · จัดการร้านของคุณ</p></div><button type="button" onClick={() => void logout()} className="ml-auto flex size-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-white/10 hover:text-white" aria-label="ออกจากระบบ" title="ออกจากระบบ"><LogOut className="size-4" /></button></div>
+            <div className="mt-3 flex items-center gap-3 rounded-2xl bg-white/5 p-3"><span className="flex size-9 items-center justify-center rounded-xl bg-emerald-100 text-emerald-900"><Crown className="size-5" /></span><div className="min-w-0"><p className="truncate text-xs font-black">{displayName}</p><p className="truncate text-xs text-slate-400">บัญชีร้านค้า · จัดการร้านของคุณ</p></div><button type="button" onClick={() => setLogoutOpen(true)} className="ml-auto flex size-8 cursor-pointer items-center justify-center rounded-lg text-slate-400 transition hover:bg-white/10 hover:text-white" aria-label="ออกจากระบบ" title="ออกจากระบบ"><LogOut className="size-4" /></button></div>
           </div>
         </aside>
         {mobileNav && <button className="fixed inset-0 z-40 bg-slate-950/50 lg:hidden" onClick={() => setMobileNav(false)} aria-label="ปิดเมนู" />}
@@ -308,12 +334,25 @@ export default function DashboardClient({ displayName = "บัญชีร้�
             </div>
           </header>
 
-          <div className={`relative min-h-0 flex-1 ${view === "inbox" ? "flex p-3 md:p-5" : "overflow-y-auto p-4 md:p-6"}`}>
+          <div className={`relative min-h-0 flex-1 ${view === "inbox" ? "flex overflow-hidden p-3 md:p-5" : "overflow-y-auto p-4 md:p-6"}`}>
             {loading ? <div className="flex min-h-[70vh] w-full items-center justify-center"><LoaderCircle className="size-7 animate-spin text-emerald-700" /><span className="ml-3 text-sm font-semibold text-slate-500">กำลังโหลด ChatMarathon</span></div> : content}
             {workspaceLoading && !loading && <div className="pointer-events-none absolute right-4 top-4 flex items-center gap-2 rounded-full border border-slate-200 bg-white/90 px-3 py-1.5 text-xs font-semibold text-slate-500 shadow-sm backdrop-blur"><LoaderCircle className="size-3.5 animate-spin" /> อัปเดตข้อมูล</div>}
           </div>
         </div>
       </div>
+      <AlertDialog open={logoutOpen} onOpenChange={(open) => !loggingOut && setLogoutOpen(open)}>
+        <AlertDialogContent className="rounded-3xl">
+          <AlertDialogHeader>
+            <AlertDialogMedia className="rounded-2xl bg-rose-50 text-rose-600"><LogOut className="size-7" /></AlertDialogMedia>
+            <AlertDialogTitle>ต้องการออกจากระบบหรือไม่?</AlertDialogTitle>
+            <AlertDialogDescription>คุณจะต้องเข้าสู่ระบบใหม่อีกครั้งเมื่อต้องการกลับมาใช้งานบัญชีร้านค้า</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={loggingOut} className="cursor-pointer">ยกเลิก</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" disabled={loggingOut} onClick={(event) => { event.preventDefault(); void logout(); }} className="cursor-pointer">{loggingOut ? <LoaderCircle className="animate-spin" /> : <LogOut />} ออกจากระบบ</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </main>
   );
 }

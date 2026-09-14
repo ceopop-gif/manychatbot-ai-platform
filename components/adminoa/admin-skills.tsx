@@ -120,7 +120,7 @@ export function AdminsView({
     setPreviewDocumentId("");
     setFileInputKey((value) => value + 1);
     setDocumentsOpen(true);
-    void loadDocuments(admin.id);
+    void loadDocuments(admin.id).catch(() => undefined);
   }
 
   async function uploadKnowledgeFile() {

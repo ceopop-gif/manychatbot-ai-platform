@@ -8,7 +8,8 @@ This project targets EasyPanel only:
 
 - Node.js `>=22.13.0`
 - PostgreSQL
-- S3-compatible object storage such as MinIO or AWS S3
+- Cloudinary for new file and media uploads
+- S3-compatible object storage such as MinIO or AWS S3 for reading legacy uploads
 - Vinext/Vite for the web application
 
 ## Environment
@@ -17,9 +18,11 @@ Copy `.env.example` to `.env` and set the service credentials:
 
 - `DATABASE_URL`: PostgreSQL connection string
 - `DATABASE_POOL_MAX`: PostgreSQL pool size
-- `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`: object storage settings
-- `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`: object storage credentials
-- `S3_FORCE_PATH_STYLE`: use `true` for MinIO and most local S3-compatible services
+- `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`: legacy object storage settings for files uploaded before Cloudinary
+- `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`: legacy object storage credentials
+- `S3_FORCE_PATH_STYLE`: legacy MinIO/S3 path-style setting
+- `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`: Cloudinary upload credentials
+- `CLOUDINARY_URL`: alternative to the three Cloudinary variables above
 - `ADMINOA_ENCRYPTION_KEY`: Base64URL-encoded 32-byte key used to encrypt provider and channel secrets
 - `SMSUP_USERNAME`, `SMSUP_PASSWORD`, `SMSUP_OTC_ID`: SMS Up credentials and OTP configuration from the SMS Up console
 - `SMSUP_BASE_URL`: SMS Up API base URL (defaults to `https://pub.smsup-plus.com`)

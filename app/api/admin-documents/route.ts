@@ -16,6 +16,7 @@ import {
 } from "@/lib/admin-document-limits";
 import { recompileAdminSkills } from "@/lib/recompile-admin-skills";
 import { getStorage } from "@/lib/storage";
+import { deleteFromCloudinary, uploadToCloudinary, type CloudinaryAsset } from "@/lib/cloudinary";
 
 type ParsedUpload = {
   adminId: string;
@@ -160,6 +161,10 @@ export async function GET(request: Request) {
         const object = await getStorage().get(document.storageKey);
         if (object) return new Response(object.body, { headers });
       }
+      if (document.cloudinaryUrl) {
+        const response = await fetch(document.cloudinaryUrl);
+        if (response.ok && response.body) return new Response(response.body, { headers });
+      }
       if (fileType === "markdown") return new Response(document.content, { headers });
       return Response.json({ error: "ไม่พบไฟล์ PDF ต้นฉบับ" }, { status: 404 });
     }
@@ -184,7 +189,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  let storedKey = "";
+  let cloudinaryAsset: CloudinaryAsset | null = null;
   let recordInserted = false;
   try {
     const user = await getMerchantUser();
@@ -210,8 +215,15 @@ export async function POST(request: Request) {
     if (duplicate) return Response.json({ error: "มีไฟล์ชื่อนี้แล้ว กรุณาลบไฟล์เดิมหรือเปลี่ยนชื่อไฟล์" }, { status: 409 });
 
     const id = crypto.randomUUID();
-    storedKey = `admin-documents/${user.id}/${id}`;
-    await getStorage().put(storedKey, upload.bytes, upload.mimeType);
+    cloudinaryAsset = await uploadToCloudinary({
+      ownerUserId: user.id,
+      workspaceId: admin.workspaceId,
+      category: "admin-documents",
+      assetId: id,
+      fileName: upload.fileName,
+      bytes: upload.bytes,
+      contentType: upload.mimeType,
+    });
     const [document] = await db.insert(adminDocuments).values({
       id,
       ownerUserId: user.id,
@@ -220,7 +232,10 @@ export async function POST(request: Request) {
       fileName: upload.fileName,
       fileType: upload.fileType,
       mimeType: upload.mimeType,
-      storageKey: storedKey,
+      storageKey: null,
+      cloudinaryPublicId: cloudinaryAsset?.publicId ?? null,
+      cloudinaryUrl: cloudinaryAsset?.secureUrl ?? null,
+      cloudinaryResourceType: cloudinaryAsset?.resourceType ?? null,
       content: upload.content,
       sizeBytes: upload.bytes.byteLength,
       pageCount: upload.pageCount,
@@ -235,11 +250,11 @@ export async function POST(request: Request) {
     }
     return Response.json({ document: safeDocument(document), recompiledSkillCount }, { status: 201 });
   } catch (error) {
-    if (storedKey && !recordInserted) {
+    if (cloudinaryAsset && !recordInserted) {
       try {
-        await getStorage().delete(storedKey);
+        await deleteFromCloudinary(cloudinaryAsset.publicId, cloudinaryAsset.resourceType);
       } catch {
-        // A later cleanup can remove an orphaned object if storage is temporarily unavailable.
+        // A later cleanup can remove an orphaned Cloudinary asset if the request fails.
       }
     }
     return Response.json({ error: errorMessage(error) }, { status: error instanceof UploadValidationError ? error.status : 500 });
@@ -261,6 +276,13 @@ export async function DELETE(request: Request) {
         await getStorage().delete(document.storageKey);
       } catch {
         // The knowledge record is already deleted; do not block the user on object cleanup.
+      }
+    }
+    if (document.cloudinaryPublicId) {
+      try {
+        await deleteFromCloudinary(document.cloudinaryPublicId, document.cloudinaryResourceType === "raw" ? "raw" : "image");
+      } catch {
+        // The knowledge record is already deleted; do not block the user on Cloudinary cleanup.
       }
     }
     const recompiledSkillCount = await recompileAdminSkills(user.id, document.adminId);

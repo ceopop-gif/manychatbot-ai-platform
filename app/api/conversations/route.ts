@@ -83,7 +83,7 @@ export async function POST(request: Request) {
       const accessToken = await decryptSecret(account.accessTokenEncrypted);
       if (!accessToken) return Response.json({ error: "LINE OA ยังไม่มี Channel access token" }, { status: 422 });
       const lineMessage = messageType === "image"
-        ? { type: "image", originalContentUrl: `${getPublicOrigin(request)}/api/conversations/media/${mediaDraft!.id}`, previewImageUrl: `${getPublicOrigin(request)}/api/conversations/media/${mediaDraft!.id}` }
+        ? { type: "image", originalContentUrl: mediaDraft!.cloudinaryUrl || `${getPublicOrigin(request)}/api/conversations/media/${mediaDraft!.id}`, previewImageUrl: mediaDraft!.cloudinaryUrl || `${getPublicOrigin(request)}/api/conversations/media/${mediaDraft!.id}` }
         : messageType === "sticker"
           ? { type: "sticker", packageId: payload.stickerPackageId!.trim(), stickerId: payload.stickerId!.trim() }
           : { type: "text", text: content };

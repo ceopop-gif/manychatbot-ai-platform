@@ -87,7 +87,9 @@ export default function AdminUsersPanel() {
   }
 
   useEffect(() => {
-    const initialLoad = window.setTimeout(() => void loadUsers(), 0);
+    const initialLoad = window.setTimeout(() => {
+      void loadUsers().catch(() => undefined);
+    }, 0);
     return () => window.clearTimeout(initialLoad);
   }, []);
 
