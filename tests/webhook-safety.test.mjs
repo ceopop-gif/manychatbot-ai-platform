@@ -3,6 +3,8 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const webhook = await readFile(new URL("../app/api/webhooks/line/[webhookKey]/route.ts", import.meta.url), "utf8");
+const conversationsRoute = await readFile(new URL("../app/api/conversations/route.ts", import.meta.url), "utf8");
+const lineMessage = await readFile(new URL("../lib/line-message.ts", import.meta.url), "utf8");
 const schema = await readFile(new URL("../db/schema.pg.ts", import.meta.url), "utf8");
 const channels = await readFile(new URL("../app/api/channel-accounts/route.ts", import.meta.url), "utf8");
 const cloudinary = await readFile(new URL("../lib/cloudinary.ts", import.meta.url), "utf8");
@@ -17,8 +19,11 @@ test("LINE webhook persists once and defers AI work", () => {
   assert.match(webhook, /https:\/\/api\.line\.me\/v2\/bot\/chat\/markAsRead/);
   assert.match(webhook, /JSON\.stringify\(\{ chatId \}\)/);
   assert.match(webhook, /senderName: admin\.name/);
-  assert.match(webhook, /const answer = removeReplyLabel\(result\.text\)\.slice\(0, 4900\)/);
-  assert.match(webhook, /text\.replace\(\/\^\\s\*ตอบโดย/);
+  assert.match(webhook, /const answer = formatLineReply\(result\.text\)\.slice\(0, 4900\)/);
+  assert.match(lineMessage, /export function formatLineReply/);
+  assert.match(webhook, /const lineText = formatLineReply\(text\)\.slice\(0, 4900\)/);
+  assert.match(conversationsRoute, /const lineContent = messageType === "text" \? formatLineReply\(content\) : content/);
+  assert.match(conversationsRoute, /text: lineContent/);
   assert.doesNotMatch(webhook, /const answer = `ตอบโดย \$\{admin\.name\}/);
   assert.match(webhook, /replyAlreadyUsed/);
   assert.doesNotMatch(webhook, /unreadCount: 0,\n\s+status: "open"/);

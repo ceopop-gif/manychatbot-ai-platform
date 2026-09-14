@@ -5,6 +5,7 @@ import { adminProfiles, adminSkills, channelAccounts, conversations, messages, w
 import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { decryptSecret } from "@/lib/secret-vault";
 import { getPublicOrigin } from "@/lib/public-origin";
+import { formatLineReply } from "@/lib/line-message";
 
 function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "ไม่สามารถโหลดบทสนทนาได้";
@@ -59,9 +60,10 @@ export async function POST(request: Request) {
     const conversationId = payload.conversationId?.trim() ?? "";
     const content = payload.content?.trim() ?? "";
     const messageType = payload.messageType === "image" ? "image" : payload.messageType === "sticker" ? "sticker" : "text";
+    const lineContent = messageType === "text" ? formatLineReply(content) : content;
     if (!conversationId) return Response.json({ error: "ไม่พบบทสนทนา" }, { status: 400 });
-    if (messageType === "text" && !content) return Response.json({ error: "กรุณาพิมพ์ข้อความ" }, { status: 400 });
-    if (content.length > 5000) return Response.json({ error: "ข้อความยาวเกิน 5,000 ตัวอักษร" }, { status: 400 });
+    if (messageType === "text" && !lineContent) return Response.json({ error: "กรุณาพิมพ์ข้อความ" }, { status: 400 });
+    if (lineContent.length > 5000) return Response.json({ error: "ข้อความยาวเกิน 5,000 ตัวอักษร" }, { status: 400 });
     if (messageType === "image" && !payload.mediaId?.trim()) return Response.json({ error: "กรุณาเลือกรูปภาพ" }, { status: 400 });
     if (messageType === "sticker" && (!/^\d+$/.test(payload.stickerPackageId?.trim() ?? "") || !/^\d+$/.test(payload.stickerId?.trim() ?? ""))) return Response.json({ error: "ไม่พบสติกเกอร์ที่เลือก" }, { status: 400 });
 
@@ -86,7 +88,7 @@ export async function POST(request: Request) {
         ? { type: "image", originalContentUrl: mediaDraft!.cloudinaryUrl || `${getPublicOrigin(request)}/api/conversations/media/${mediaDraft!.id}`, previewImageUrl: mediaDraft!.cloudinaryUrl || `${getPublicOrigin(request)}/api/conversations/media/${mediaDraft!.id}` }
         : messageType === "sticker"
           ? { type: "sticker", packageId: payload.stickerPackageId!.trim(), stickerId: payload.stickerId!.trim() }
-          : { type: "text", text: content };
+          : { type: "text", text: lineContent };
       const response = await fetchWithTimeout("https://api.line.me/v2/bot/message/push", {
         method: "POST",
         headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
@@ -111,7 +113,7 @@ export async function POST(request: Request) {
         direction: "outbound",
         senderType: "admin",
         senderName: user.displayName,
-        content: messageType === "sticker" ? "[สติกเกอร์]" : content,
+        content: messageType === "sticker" ? "[สติกเกอร์]" : lineContent,
         messageType,
         stickerPackageId: messageType === "sticker" ? payload.stickerPackageId!.trim() : "",
         stickerId: messageType === "sticker" ? payload.stickerId!.trim() : "",
@@ -119,7 +121,7 @@ export async function POST(request: Request) {
         createdAt: now,
       }).returning())[0];
     await db.update(conversations).set({
-      lastMessagePreview: messageType === "text" ? content : messageType === "image" ? "[รูปภาพ]" : "[สติกเกอร์]",
+      lastMessagePreview: messageType === "text" ? lineContent : messageType === "image" ? "[รูปภาพ]" : "[สติกเกอร์]",
       lastMessageAt: now,
       updatedAt: now,
       unreadCount: 0,

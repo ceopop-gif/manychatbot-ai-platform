@@ -16,6 +16,7 @@ import { fetchWithTimeout } from "@/lib/fetch-with-timeout";
 import { decryptSecret } from "@/lib/secret-vault";
 import { compileSkillMarkdown } from "@/lib/skill-markdown";
 import { uploadToCloudinary, type CloudinaryAsset } from "@/lib/cloudinary";
+import { formatLineReply } from "@/lib/line-message";
 
 type LineEvent = {
   type?: string;
@@ -346,7 +347,7 @@ async function processTextEvent(
     const { admin, skill } = selected;
     const instruction = buildSkillInstruction(admin, skill, decision.reason);
     const result = await generateAiReply(provider, instruction, turns);
-    const answer = removeReplyLabel(result.text).slice(0, 4900);
+    const answer = formatLineReply(result.text).slice(0, 4900);
     if (!answer) throw new Error("AI Provider ไม่ส่งข้อความคำตอบกลับมา");
     if (!(await canAutoReply(freshAccount.id, conversation.id, ingested.externalEventId))) return;
     replyAttempted = true;
@@ -482,10 +483,12 @@ async function sendFallbackReply(
 
 async function replyToLine(accessToken: string, replyToken: string | undefined, text: string) {
   if (!replyToken) throw new Error("LINE event ไม่มี replyToken สำหรับตอบกลับ");
+  const lineText = formatLineReply(text).slice(0, 4900);
+  if (!lineText) throw new Error("ไม่พบข้อความสำหรับส่งไป LINE");
   const response = await fetchWithTimeout("https://api.line.me/v2/bot/message/reply", {
     method: "POST",
     headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
-    body: JSON.stringify({ replyToken, messages: [{ type: "text", text }] }),
+    body: JSON.stringify({ replyToken, messages: [{ type: "text", text: lineText }] }),
   }, 10_000, "LINE ใช้เวลาตอบข้อความนานเกิน 10 วินาที");
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
@@ -495,19 +498,17 @@ async function replyToLine(accessToken: string, replyToken: string | undefined, 
 
 async function pushToLine(accessToken: string, to: string, text: string) {
   if (!to) throw new Error("LINE event ไม่มีปลายทางสำหรับส่งข้อความ");
+  const lineText = formatLineReply(text).slice(0, 4900);
+  if (!lineText) throw new Error("ไม่พบข้อความสำหรับส่งไป LINE");
   const response = await fetchWithTimeout("https://api.line.me/v2/bot/message/push", {
     method: "POST",
     headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
-    body: JSON.stringify({ to, messages: [{ type: "text", text }] }),
+    body: JSON.stringify({ to, messages: [{ type: "text", text: lineText }] }),
   }, 10_000, "LINE ใช้เวลาส่งข้อความนานเกิน 10 วินาที");
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
     throw new Error(`LINE ส่งข้อความไม่สำเร็จ (HTTP ${response.status}) ${detail.slice(0, 160)}`.trim());
   }
-}
-
-function removeReplyLabel(text: string) {
-  return text.replace(/^\s*ตอบโดย[^\r\n]*(?:\r?\n)+/i, "").trim();
 }
 
 async function markLineChatAsRead(accessToken: string, chatId: string) {
